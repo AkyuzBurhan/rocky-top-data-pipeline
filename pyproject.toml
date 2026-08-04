@@ -1,0 +1,19 @@
+[project]
+name = "rocky-top-outfitters"
+version = "0.1.0"
+description = "Daily data pipeline for Rocky Top Outfitters (ingestion, cleaning, product migration, weather enrichment, monitoring, analytics)."
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.0",
+    "sqlalchemy>=2.0",
+    "pymysql>=1.1",
+    "requests>=2.31",
+    "fuzzywuzzy>=0.18",
+    "python-Levenshtein>=0.21",
+]
+
+# Treat this as a workspace of scripts (helpers/ + src/), not an installable
+# package, so `uv sync` only manages dependencies and does not require a build
+# backend.
+[tool.uv]
+package = false

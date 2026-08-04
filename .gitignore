@@ -1,0 +1,15 @@
+# Secrets -- NEVER commit these
+credentials.json
+.env
+
+# Python / uv
+__pycache__/
+*.pyc
+.venv/
+
+# Local SQLite DB is rebuildable from committed CSVs. Uncomment to keep it out
+# of git and rebuild via the pipeline instead.
+# rocky_top.db
+
+# OS noise
+.DS_Store
