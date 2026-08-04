@@ -24,7 +24,11 @@ DATA_QUALITY_LOG_CSV = DATA_DIR / "data_quality_log.csv"
 CREDENTIALS_PATH = ROOT_DIR / "credentials.json"  # git-ignored
 
 # --- Source feed ----------------------------------------------------------
-ORDERS_URL = "https://tiny.utk.edu/RToutfitters/daily/orders.csv"
+# The canonical source is this public GitHub raw file. tiny.utk.edu/RToutfitters
+# /daily/orders.csv is just a short link that redirects here; we use the direct
+# raw URL so it is guaranteed reachable from GitHub Actions.
+ORDERS_URL = ("https://raw.githubusercontent.com/AdamSpannbauer/"
+              "su26-bzan545-current-orders/refs/heads/master/orders.csv")
 
 # --- Orders schema knowledge (used from Step 3 onward) --------------------
 # The daily file uses one of two product-identifier columns depending on the
@@ -34,10 +38,11 @@ NEW_PRODUCT_COL = "new_product_id"       # values like "NP5047"
 PRODUCT_SOURCE_COL = "product_id_source" # flag added 2026-07-31+ ("new_system")
 
 # --- UTK databases --------------------------------------------------------
-# The team DB name is not a secret (the class helper hard-codes it too), so we
-# default to it here. Only username/password must live in credentials.json.
-# Override in credentials.json with "team_db" / "source_db" if ever needed.
-TEAM_DB_DEFAULT = "bakyuz_bzan545"
+# The team DB is derived per-user as "<username>_<TEAM_DB_SUFFIX>", where the
+# username comes from the git-ignored credentials.json. This way no personal
+# NetID is committed to the repo. Only the generic course suffix lives here.
+# (You can still override the full name with "team_db" in credentials.json.)
+TEAM_DB_SUFFIX = "bzan545"
 
 # --- Reference tables (pulled from the UTK MySQL databases) ----------------
 REFERENCE_TABLES = ["stores", "products", "new_products"]

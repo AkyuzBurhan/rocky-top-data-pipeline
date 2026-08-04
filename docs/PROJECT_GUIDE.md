@@ -20,7 +20,7 @@ trusted analytics. The business question is:
 | Database | What it is | Who reads/writes |
 |----------|------------|------------------|
 | **SQLite** (`rocky_top.db`, a local file) | Our **automation engine**. The whole pipeline runs here. No network needed. | Every script reads/writes it. |
-| **UTK team MySQL** (`bakyuz_bzan545`) | The "real" SQL home on the UTK server. We **publish** final tables here. | `extract_reference.py` (write), `publish_to_utk.py` (write, later step). Needs campus/VPN. |
+| **UTK team MySQL** (`<netid>_bzan545`) | The "real" SQL home on the UTK server. We **publish** final tables here. | `extract_reference.py` (write), `publish_to_utk.py` (write, later step). Needs campus/VPN. |
 | **Instructor MySQL DB** | Source of the reference tables (`stores`, `products`, `new_products`). | `extract_reference.py` (read). Needs campus/VPN. |
 
 Because GitHub Actions can't reach the UTK network, the pipeline runs on
@@ -80,9 +80,10 @@ cp credentials.example.json credentials.json    # then edit it (see below)
   "username": "YOUR_NETID", "password": "YOUR_DB_PASSWORD" }
 ```
 
-The team DB name defaults to `bakyuz_bzan545` in code, so you don't have to add
-it. Add `"source_db": "..."` only if reading reference from a separate
-instructor DB.
+The team DB name is auto-derived from your `username` as `<username>_bzan545`,
+so no NetID is stored in the repo and you don't have to add it. Add
+`"team_db": "..."` to override it, or `"source_db": "..."` only if reading
+reference from a separate instructor DB.
 
 ### Full run, in order
 
@@ -172,7 +173,7 @@ docs/      this guide + decision/quality notes
 - **Purpose:** one place for all non-secret settings (paths, the orders URL,
   table/column names, status words like `success`/`stale`/`empty`).
 - **What it does / how it works:** defines constants other files import, e.g.
-  `RAW_DIR`, `SQLITE_PATH`, `ORDERS_URL`, `REFERENCE_TABLES`, `TEAM_DB_DEFAULT`.
+  `RAW_DIR`, `SQLITE_PATH`, `ORDERS_URL`, `REFERENCE_TABLES`, `TEAM_DB_SUFFIX`.
   Paths are computed relative to the repo root so scripts work from anywhere.
 - **How to see it:** it has no output; it's imported everywhere. If a path or
   URL is wrong, change it here once.
@@ -186,7 +187,7 @@ docs/      this guide + decision/quality notes
 - **Key functions:**
   - `get_sqlite_engine()` — connection to the local `rocky_top.db`. No network.
     This is what the pipeline uses.
-  - `get_team_engine()` — connection to our UTK team DB (`bakyuz_bzan545`).
+  - `get_team_engine()` — connection to our UTK team DB (`<netid>_bzan545`).
   - `get_source_engine()` — connection to the reference source DB (instructor's
     if `source_db` is set, otherwise the team DB).
   - `create_mysql_utk_engine(...)` — the low-level UTK MySQL builder

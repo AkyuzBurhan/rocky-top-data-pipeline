@@ -8,7 +8,7 @@ Everything happens in code (no manual copy/paste):
     2. SELECT stores / products / new_products.
     3. Write each result to:
          - data/reference/<table>.csv  (committed; feeds the SQLite pipeline)
-         - our TEAM database bakyuz_bzan545  (the "real" SQL home)
+         - our TEAM database <netid>_bzan545  (the "real" SQL home)
          - the local SQLite database
 
 new_products is released later in the project; if it does not exist yet in the

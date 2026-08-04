@@ -5,7 +5,7 @@ Two very different databases are involved:
 
 1. UTK MySQL/MariaDB (host: mariadb-compx0.oit.utk.edu)
    - Reference source -> read stores/products/new_products.
-   - Our team database (bakyuz_bzan545) -> publish final tables here.
+   - Our team database (<netid>_bzan545) -> publish final tables here.
    Only reachable on campus or through the UTK VPN, so GitHub Actions cannot
    use it. Credentials come from credentials.json (git-ignored).
 
@@ -71,20 +71,26 @@ def get_source_engine():
 
     Uses 'source_db' from credentials.json when present (the instructor's DB),
     otherwise falls back to the team DB -- handy when the reference tables
-    already live in our own team database (bakyuz_bzan545)."""
+    already live in our own team database (<netid>_bzan545)."""
     creds = _load_credentials()
     database = (creds.get("source_db")
                 or creds.get("team_db")
-                or config.TEAM_DB_DEFAULT)
+                or _team_db_name(creds))
     return _mysql_engine(creds, database)
 
 
+def _team_db_name(creds):
+    """Derive the team DB name as '<username>_<suffix>' (no NetID in the repo)."""
+    return f"{creds['username']}_{config.TEAM_DB_SUFFIX}"
+
+
 def get_team_engine():
-    """Engine for OUR team database (bakyuz_bzan545): where we publish the
-    modeled/analytics tables. The DB name defaults to config.TEAM_DB_DEFAULT,
-    so credentials.json only needs username + password (host/port optional)."""
+    """Engine for OUR team database (e.g. <netid>_bzan545): where we publish the
+    modeled/analytics tables. The name is derived from the username in
+    credentials.json, so credentials.json only needs username + password
+    (host/port optional)."""
     creds = _load_credentials()
-    database = creds.get("team_db") or config.TEAM_DB_DEFAULT
+    database = creds.get("team_db") or _team_db_name(creds)
     return _mysql_engine(creds, database)
 
 
