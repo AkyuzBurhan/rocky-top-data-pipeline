@@ -1,19 +1,18 @@
-name: Daily orders capture
+name: Daily pipeline
 
 on:
   schedule:
-    - cron: "0 13 * * *"      # 13:00 UTC ≈ 09:00 ET (kaynak 00-03 ET'de yenilenir)
-  workflow_dispatch: {}        # Actions sekmesinden elle de çalıştırabilirsin
+    - cron: "0 13 * * *"     # 13:00 UTC ≈ 09:00 ET
+  workflow_dispatch: {}
 
 permissions:
   contents: write
 
 jobs:
-  capture:
+  run:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Install uv
         uses: astral-sh/setup-uv@v5
@@ -23,13 +22,24 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      - name: Capture today's orders file
+      # Stage 1: capture + commit FIRST (günlük dosya asla kaybolmasın)
+      - name: Capture today's orders
         run: uv run python -m src.capture
 
-      - name: Commit the captured file and log
+      - name: Commit the captured file
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/raw data/ingestion_log.csv
-          git commit -m "Daily capture: $(date -u +%Y-%m-%d)" || echo "Nothing new to commit"
+          git commit -m "Daily capture: $(date -u +%Y-%m-%d)" || echo "Nothing to capture-commit"
+          git push
+
+      # Stage 2: tüm pipeline'ı kur + sonuçları commit et
+      - name: Build the pipeline
+        run: uv run python -m src.run_pipeline
+
+      - name: Commit the refreshed database and logs
+        run: |
+          git add data rocky_top.db
+          git commit -m "Daily build: $(date -u +%Y-%m-%d)" || echo "Nothing to build-commit"
           git push
