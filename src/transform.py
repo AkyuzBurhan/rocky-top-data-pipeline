@@ -27,6 +27,7 @@ Usage:
 import pandas as pd
 
 from helpers import db
+from src.crosswalk import CATEGORY_TO_DEPARTMENT
 
 
 def _to_int(series):
@@ -112,5 +113,112 @@ def build_clean_orders(engine=None):
     return len(clean)
 
 
+def build_daily_sales(engine=None):
+    """Aggregate clean_orders to the analytics grain: order_date x store_id x
+    category, joining product category and daily weather.
+
+    - category (Decision 1 = A): the new-system department, looked up from
+      new_products via the crosswalk-resolved product_key. Products with no
+      new-system match (unresolved legacy items, and the orphan NP9999) fall to
+      'UNKNOWN' -- nothing is dropped, so revenue reconciles (Decision 2).
+    - revenue (Decision 4 = B): unit_price is already the POST-discount price,
+      so net_revenue = quantity * unit_price, gross_revenue adds the discount
+      back, and discount_given is the difference.
+
+    Prints grain and reconciliation checks for the Analytics-Ready milestone.
+    """
+    engine = engine or db.get_sqlite_engine()
+    clean = pd.read_sql("SELECT * FROM clean_orders", engine)
+    if clean.empty:
+        print("[transform] clean_orders empty; skipping daily_sales")
+        return 0
+
+    # category = new-system department, with a legacy fallback + a source flag
+    # so both views are kept:
+    #   new_system       -> department looked up from new_products (matched/new)
+    #   legacy_recovered -> product discontinued in the migration; department
+    #                       recovered from its legacy category (still a real sale)
+    #   unknown          -> genuinely uncatalogued (the NP9999 orphan)
+    try:
+        nd = pd.read_sql("SELECT new_product_id, department FROM new_products", engine)
+        new_dept = dict(zip(nd["new_product_id"], nd["department"]))
+    except Exception:
+        new_dept = {}
+    try:
+        pc = pd.read_sql("SELECT product_id, category FROM products", engine)
+        legacy_cat = dict(zip(pc["product_id"], pc["category"]))
+    except Exception:
+        legacy_cat = {}
+
+    def resolve_category(row):
+        pk = row["product_key"]
+        if pk in new_dept:
+            return pd.Series([new_dept[pk], "new_system"])
+        lid = row["legacy_product_id"]
+        if pd.notna(lid) and lid in legacy_cat:
+            dep = CATEGORY_TO_DEPARTMENT.get(str(legacy_cat[lid]).lower(), "UNKNOWN")
+            return pd.Series([dep, "legacy_recovered"])
+        return pd.Series(["UNKNOWN", "unknown"])
+
+    clean[["category", "category_source"]] = clean.apply(resolve_category, axis=1)
+
+    # revenue math (unit_price is post-discount)
+    q = _to_float(clean["quantity"])
+    up = _to_float(clean["unit_price"])
+    disc = _to_float(clean["discount_pct"]).fillna(0)
+    denom = (1 - disc / 100).where(lambda s: s > 0, other=1)  # guard against /0
+    clean["_q"] = q
+    clean["_net"] = q * up
+    clean["_gross"] = (q * up) / denom
+    clean["_disc"] = clean["_gross"] - clean["_net"]
+
+    agg = (clean.groupby(["order_date", "store_id", "category", "category_source"],
+                         dropna=False)
+           .agg(units_sold=("_q", "sum"),
+                net_revenue=("_net", "sum"),
+                gross_revenue=("_gross", "sum"),
+                discount_given=("_disc", "sum"))
+           .reset_index())
+
+    # join daily weather on (date, store)
+    try:
+        w = pd.read_sql(
+            "SELECT weather_date, store_id, temperature_2m_max, "
+            "temperature_2m_min, precipitation_sum, weather_code "
+            "FROM weather_daily", engine)
+    except Exception:
+        w = pd.DataFrame()
+    if not w.empty:
+        w = w.rename(columns={"weather_date": "order_date",
+                              "temperature_2m_max": "temp_max",
+                              "temperature_2m_min": "temp_min"})
+        agg = agg.merge(w, on=["order_date", "store_id"], how="left")
+    for col in ["temp_max", "temp_min", "precipitation_sum", "weather_code"]:
+        if col not in agg.columns:
+            agg[col] = None
+
+    cols = ["order_date", "store_id", "category", "category_source", "units_sold",
+            "net_revenue", "gross_revenue", "discount_given",
+            "temp_max", "temp_min", "precipitation_sum", "weather_code"]
+    agg[cols].to_sql("daily_sales", engine, if_exists="replace", index=False)
+
+    # --- validations for the Analytics-Ready milestone ---
+    grain_cols = ["order_date", "store_id", "category", "category_source"]
+    grain_unique = len(agg) == len(agg[grain_cols].drop_duplicates())
+    ds_net = float(agg["net_revenue"].sum())
+    co_net = float(_to_float(clean["line_revenue"]).sum())  # from clean_orders
+    reconciles = abs(ds_net - co_net) < 0.01
+    weather_rows = int(agg["temp_max"].notna().sum())
+    print(f"[transform] daily_sales rebuilt: {len(agg)} rows "
+          f"(grain: order_date x store_id x category x category_source)")
+    print(f"[transform]   grain unique: {grain_unique}")
+    print(f"[transform]   reconciliation net_revenue: daily_sales={ds_net:,.2f} "
+          f"vs clean_orders line_revenue={co_net:,.2f} "
+          f"-> {'MATCH' if reconciles else 'MISMATCH'}")
+    print(f"[transform]   weather-joined rows: {weather_rows}/{len(agg)}")
+    return len(agg)
+
+
 if __name__ == "__main__":
     build_clean_orders()
+    build_daily_sales()

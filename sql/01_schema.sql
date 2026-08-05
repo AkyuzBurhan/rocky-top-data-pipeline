@@ -122,15 +122,23 @@ CREATE TABLE IF NOT EXISTS clean_orders (
 );
 
 -- Analytics-ready table (grain: one row per date x store x category).
+-- Revenue is reported both net and gross because unit_price is already the
+-- post-discount price (verified: unit_price = base_price * (1 - discount_pct/100)):
+--   net_revenue    = quantity * unit_price           (what customers actually paid)
+--   gross_revenue  = quantity * unit_price / (1 - discount_pct/100)  (list price)
+--   discount_given = gross_revenue - net_revenue
 CREATE TABLE IF NOT EXISTS daily_sales (
     order_date        TEXT,
     store_id          TEXT,
-    category          TEXT,
+    category          TEXT,           -- new-system department (UNKNOWN only for true orphans)
+    category_source   TEXT,           -- new_system | legacy_recovered | unknown
     units_sold        INTEGER,
+    net_revenue       REAL,
     gross_revenue     REAL,
+    discount_given    REAL,
     temp_max          REAL,
     temp_min          REAL,
     precipitation_sum REAL,
     weather_code      INTEGER,
-    PRIMARY KEY (order_date, store_id, category)
+    PRIMARY KEY (order_date, store_id, category, category_source)
 );

@@ -54,13 +54,17 @@ UTK reference (stores/products/new_products)
       │  reference.py               -> loads those CSVs into SQLite
       ▼
 crosswalk.py  -> product_crosswalk   (legacy <-> new product matching)
-transform.py  -> clean_orders        (typed, deduped, product resolved)
+transform.py  -> clean_orders        (typed, deduped, product resolved via crosswalk)
 weather.py    -> weather_daily       (Open-Meteo, per store per date)
       ▼
-(Step 10) daily_sales                -> analytics-ready table
+transform.py  -> daily_sales         (analytics-ready: date x store x category x
+                                      category_source; net/gross revenue + weather)
       ▼
 dashboard / report
 ```
+
+Tip: `run_pipeline.py` runs every SQLite step above in the correct order with a
+single command — see below.
 
 ---
 
@@ -85,7 +89,19 @@ so no NetID is stored in the repo and you don't have to add it. Add
 `"team_db": "..."` to override it, or `"source_db": "..."` only if reading
 reference from a separate instructor DB.
 
-### Full run, in order
+### Easiest: one command
+
+```bash
+uv run python -m src.run_pipeline            # rebuild everything, in the right order
+uv run python -m src.run_pipeline --capture  # also download today's file first
+uv run python -m src.run_pipeline --no-weather  # skip the network weather step
+```
+
+`run_pipeline` runs all the SQLite steps in the correct order (it handles the
+"weather before daily_sales" ordering for you). Reference extraction still runs
+separately because it needs the UTK VPN (see below).
+
+### Full run, step by step (what run_pipeline does)
 
 ```bash
 # 1) Get reference tables from UTK (ON CAMPUS / VPN, run occasionally)
@@ -106,15 +122,18 @@ uv run python -m src.check_quality
 # 6) Build the product crosswalk (legacy <-> new)
 uv run python -m src.crosswalk
 
-# 7) Build clean_orders (applies the crosswalk)
-uv run python -m src.transform
-
-# 8) Weather (needs network)
+# 7) Weather (needs network) -> weather_daily
 uv run python -m src.weather
+
+# 8) Build clean_orders + daily_sales (run AFTER crosswalk and weather)
+uv run python -m src.transform
 ```
 
 Every command prints a one-line summary of what it did. You can run each step
 on its own; they are **idempotent** (safe to re-run — they don't double-load).
+Note: `transform` builds **both** `clean_orders` and `daily_sales`, so run it
+after `crosswalk` (for product mapping) and after `weather` (so the weather join
+has data).
 
 ### Rebuilding from scratch
 
@@ -351,8 +370,9 @@ docs/      this guide + decision/quality notes
   2. otherwise **block** on preserved attributes (`launch_date` + `margin` +
      mapped `department`), then **score** candidates by fuzzy name similarity
      (`product_name` vs `item_name`), token similarity (`subcategory` vs
-     `class`), and price closeness (`base_price` vs `msrp`).
-  3. no candidate -> `unresolved`.
+     `class`), and price closeness (`base_price` vs `msrp`). If even the best
+     candidate scores below `MIN_SCORE` (0.60), nothing is claimed -> `unresolved`.
+  3. no candidate at all -> `unresolved`.
   It then flags anything that is **not** a high-confidence match with
   `needs_review = 1`, and prints an integrity check (no new product assigned to
   two legacy products).
@@ -368,19 +388,29 @@ docs/      this guide + decision/quality notes
 
 ### `src/transform.py`
 
-- **Purpose:** turn `raw_orders` into the cleaned `clean_orders` table.
-- **How it works:** resolves each order's product **by value/flag, not header**
-  (new-system if `product_id_source == new_system`, or the value starts with
-  `NP`, or the `new_product_id` column was used), maps legacy IDs to new IDs via
-  the crosswalk, fixes types, computes `line_revenue = quantity * unit_price`,
-  maps loyalty `Y/N -> 1/0`, drops bad-date and duplicate rows (into
-  `rejected_rows`, never silently deleted), and rebuilds `clean_orders`.
-- **Key functions:** `build_clean_orders(engine)`, `_record_rejected(...)`.
-- **How to run:** `uv run python -m src.transform` (run **after** `crosswalk` so
-  the mapping is applied).
-- **How to see the result:** console prints
-  `clean_orders rebuilt: N rows (dropped X bad-date, Y duplicate)`. Inspect the
-  `clean_orders` and `rejected_rows` tables.
+- **Purpose:** build the two modeled tables — `clean_orders` and `daily_sales`.
+- **Key functions:**
+  - `build_clean_orders(engine)` — turns `raw_orders` into cleaned rows. Resolves
+    each order's product **by value/flag, not header** (new-system if
+    `product_id_source == new_system`, or the value starts with `NP`, or the
+    `new_product_id` column was used), maps legacy IDs to new IDs via the
+    crosswalk, fixes types, computes `line_revenue = quantity * unit_price` (this
+    is the **net** paid, since `unit_price` is already post-discount), maps
+    loyalty `Y/N -> 1/0`, and drops bad-date/duplicate rows into `rejected_rows`
+    (never silently deleted).
+  - `build_daily_sales(engine)` — aggregates `clean_orders` to the analytics
+    grain **order_date × store_id × category × category_source**. Category is the
+    new-system **department** (via `product_key`); discontinued products are
+    recovered from their legacy category (`category_source = legacy_recovered`)
+    and the orphan `NP9999` becomes `UNKNOWN` (`category_source = unknown`).
+    Reports `net_revenue`, `gross_revenue`, `discount_given`, joins `weather_daily`
+    on `(date, store)`, and prints grain + revenue **reconciliation** checks.
+  - `_record_rejected(...)` — writes dropped rows to `rejected_rows`.
+- **How to run:** `uv run python -m src.transform` (run **after** `crosswalk` and
+  `weather`). It builds both tables.
+- **How to see the result:** console prints `clean_orders rebuilt: N rows ...`
+  and `daily_sales rebuilt: N rows ... grain unique: True ... reconciliation ...
+  MATCH`. Inspect the `clean_orders`, `daily_sales`, and `rejected_rows` tables.
 
 ---
 
@@ -391,11 +421,48 @@ docs/      this guide + decision/quality notes
   `clean_orders`, calls the Open-Meteo archive API, **caches** the raw JSON under
   `data/weather_cache/`, and writes one row per store per date.
 - **Key functions:** `fetch_weather(engine)`, `_fetch_store(...)` (uses the cache
-  if present).
+  if present), `_purge_stale_cache(...)` (keeps only one cache file per store as
+  the date range grows, so `data/weather_cache/` doesn't accumulate old files).
 - **How to run:** `uv run python -m src.weather` (needs network).
 - **How to see the result:** console prints
-  `weather_daily rebuilt: N rows (8 stores x ~28 dates ...)`; cached JSON files
-  appear in `data/weather_cache/`; inspect the `weather_daily` table.
+  `weather_daily rebuilt: N rows (8 stores x ~28 dates ...)`; one cached JSON per
+  store appears in `data/weather_cache/`; inspect the `weather_daily` table.
+
+---
+
+### `src/run_pipeline.py`
+
+- **Purpose:** the single command that (re)builds everything in the right order.
+- **What it does / how it works:** only calls the existing step functions —
+  `init_db -> reference -> load_raw -> check_quality -> crosswalk ->
+  clean_orders -> weather -> daily_sales`. No business logic lives here, so it
+  never duplicates what the individual scripts do. The weather step is wrapped so
+  a network hiccup can't block the rest of the build.
+- **How to run:** `uv run python -m src.run_pipeline`
+  (`--capture` to download today's file first, `--no-weather` to skip weather).
+- **How to see the result:** it runs each step (each prints its own summary) and
+  ends with `[pipeline] done`. Afterwards every table in `rocky_top.db` is fresh.
+
+---
+
+### `.github/workflows/daily_capture.yml`
+
+- **Purpose:** run the whole pipeline automatically every day on GitHub's
+  servers (no one has to be at their computer).
+- **What it does / how it works:** two stages. **Stage 1** captures today's
+  `orders.csv` and commits it immediately (so the transient file is never lost).
+  **Stage 2** runs `run_pipeline` and commits the refreshed database + logs. It
+  fires on a daily cron and can also be run by hand from the **Actions** tab
+  (`workflow_dispatch`). No secrets are needed — it uses SQLite + the committed
+  reference CSVs + the public Open-Meteo API, never the UTK MySQL server.
+- **Why daily runs matter:** each run stamps its own real timestamp in
+  `ingestion_log` / `data_quality_log`, which is the evidence of genuine
+  day-by-day monitoring (a one-time backfill would show identical timestamps).
+- **Requirements:** in the repo, Settings → Actions → General → Workflow
+  permissions = **Read and write**; and `data/reference/*.csv` must be committed.
+- **How to see the result:** the **Actions** tab shows each run's logs; the repo
+  gets a daily `Daily capture` + `Daily build` commit containing the new raw
+  file, the refreshed `rocky_top.db`, and updated logs.
 
 ---
 
@@ -410,19 +477,35 @@ docs/      this guide + decision/quality notes
 - **Duplicates:** `2026-07-16` has 4 duplicate rows -> removed in `clean_orders`,
   kept in `rejected_rows`.
 - **Orphan product:** `NP9999` appears in orders but is in no catalog; flagged in
-  the data-quality log, becomes `UNKNOWN` category in analytics.
+  the data-quality log, and in `daily_sales` it is the only thing left as
+  `category = UNKNOWN` (`category_source = unknown`).
 - **Discontinued products:** legacy styles 268/270/272/274 have no new-catalog
-  equivalent -> `unresolved` in the crosswalk (a legitimate outcome).
+  equivalent -> `unresolved` in the crosswalk. Their real sales are still
+  categorized in `daily_sales` by recovering the department from their legacy
+  category (`category_source = legacy_recovered`), so no revenue is lost.
+- **Revenue is net-of-discount:** `unit_price` is already the post-discount price
+  (verified: `unit_price = base_price * (1 - discount_pct/100)`). So `net_revenue`
+  = `quantity * unit_price`, and `daily_sales` also reports `gross_revenue` (list
+  price) and `discount_given` = gross − net.
 
 ---
 
-## 5. Still to add (later steps)
+## 5. Done since the first draft
 
-- `daily_sales` builder (analytics-ready table: date x store x category, with
-  weather joined).
-- `run_pipeline.py` — one command that runs all steps in the right order.
-- `publish_to_utk.py` — push final tables to the team DB.
+- `daily_sales` analytics table + `build_daily_sales` (category resolution with
+  `category_source`, net/gross revenue, weather join, reconciliation checks).
+- `run_pipeline.py` — one command that runs every step in the right order.
+- GitHub Actions **daily full pipeline** (`.github/workflows/daily_capture.yml`):
+  capture + commit, then rebuild + commit db/logs, so monitoring logs get a real
+  timestamp every day.
+- Weather cache cleanup (one file per store).
+
+## 6. Still to add (later steps)
+
+- `publish_to_utk.py` — push final tables to the team DB (on VPN).
 - `verify_tables.py` — a runnable "the SQL tables exist" demo.
-- GitHub Actions automation + the business dashboard.
+- `manual_overrides.csv` support in the crosswalk (make human review decisions
+  permanent) — optional.
+- The business dashboard.
 
 When those land, this guide will be updated.
