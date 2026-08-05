@@ -32,9 +32,20 @@ def _cache_path(store_id, start, end):
     return config.WEATHER_CACHE_DIR / f"{store_id}_{start}_{end}.json"
 
 
+def _purge_stale_cache(store_id, keep):
+    """Remove older cache files for this store (from a different date range) so
+    the folder keeps exactly one file per store as the range grows."""
+    if not config.WEATHER_CACHE_DIR.exists():
+        return
+    for old in config.WEATHER_CACHE_DIR.glob(f"{store_id}_*.json"):
+        if old != keep:
+            old.unlink()
+
+
 def _fetch_store(store_id, lat, lon, start, end):
     """Return Open-Meteo JSON for one store/date-range, using the cache if present."""
     cache = _cache_path(store_id, start, end)
+    _purge_stale_cache(store_id, cache)      # keep only the current range per store
     if cache.exists():
         return json.loads(cache.read_text())
     params = {
