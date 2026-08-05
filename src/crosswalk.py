@@ -12,6 +12,7 @@ Method = attribute BLOCKING + fuzzy SCORING (see docs/DECISIONS.md):
             - single candidate, strong name     -> matched / high
             - single candidate, weak name       -> matched / medium
             - two candidates, close scores      -> possible_match / medium
+            - best candidate below MIN_SCORE    -> unresolved / low
   Tier 3  no attribute-block candidate          -> unresolved / low
 
 After building, we VALIDATE (not match) against the observed id pattern
@@ -45,7 +46,7 @@ CATEGORY_TO_DEPARTMENT = {
 W_NAME, W_SUBCLASS, W_PRICE = 0.6, 0.2, 0.2
 STRONG_NAME = 0.85       # name similarity above this -> high confidence
 AMBIGUOUS_GAP = 0.05     # top-2 combined scores closer than this -> possible
-
+MIN_SCORE = 0.60         # best candidate must clear this or nothing is claimed
 
 def _price_closeness(base_price, msrp):
     try:
@@ -108,6 +109,12 @@ def build_crosswalk(engine=None):
             scored = sorted((_score(lp, c) + (c,) for c in cands),
                             key=lambda x: x[0], reverse=True)
             combined, name_sim, best = scored[0]
+            if combined < MIN_SCORE:
+                rows.append((lp["product_id"], None, "unresolved", "low",
+                             "below_threshold",
+                             f"best candidate {best['new_product_id']} scored "
+                             f"{combined:.2f}, under the {MIN_SCORE} floor"))
+                continue
             ambiguous = len(scored) > 1 and (scored[0][0] - scored[1][0]) < AMBIGUOUS_GAP
             if ambiguous:
                 alt = scored[1][2]["new_product_id"]
