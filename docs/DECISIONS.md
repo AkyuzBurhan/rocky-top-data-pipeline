@@ -316,6 +316,53 @@ Facts about what exists:
 
 ## AI-Use Disclosure
 
+All AI use below is for the final project. **No AI assistance was used on any
+quiz or assessment**, per course policy.
+
+### Tools and what they were used for
+
+| Tool | Used for |
+|---|---|
+| Claude (chat) | Repository audit, verification of revenue and crosswalk figures, project planning, drafting |
+| Claude Code | Repo sweep against the rubric, factual sections of this document, `src/verify_tables.py`, `docs/CONTEXT.md`, `audit_gaps.md` |
+| Claude (Burhan) | `dashboard/app.py`, the Streamlit weather-sensitivity dashboard |
+| [Jack: fill in] | [Jack: fill in] |
+| [James: fill in] | [James: fill in] |
+
+### What was AI-generated
+
+- `src/verify_tables.py` was written by Claude Code from a specification we wrote,
+  then reviewed line by line before committing.
+- The factual sections of this document (what happened, evidence paths, how the
+  pipeline responded) were drafted by Claude Code from repository contents. Every
+  "Why we decided this" section was written by the team.
+- `audit_gaps.md` is an AI-generated audit against the submission checklist.
+- `dashboard/app.py` was built with AI assistance and reviewed before merging.
+
+### What was not
+
+- The pipeline itself: `src/capture.py`, `src/load_raw.py`, `src/transform.py`,
+  `src/crosswalk.py`, `src/weather.py`, `helpers/`, and `sql/01_schema.sql` were
+  written by the team over the course of the project.
+- All design decisions: SQLite over the UT MySQL server, the entity-resolution
+  scoring weights and thresholds, the department-level category taxonomy, and the
+  decision to document rather than resolve the four ambiguous product matches.
+
+### How AI output was verified
+
+Figures in this document were checked against database queries and source files
+rather than accepted as written. This caught real errors. An early AI-assisted
+summary described the entity-resolution score as `0.6 * name + 0.4 * price`;
+reading `src/crosswalk.py` showed the actual weights are `0.6 * name +
+0.2 * subclass + 0.2 * price`. The recovered 2026-08-05 revenue figure was also
+computed incorrectly on the first attempt, by applying `discount_pct` to a
+`unit_price` that already had the discount applied. Both were corrected before
+being committed.
+
+The pipeline was run from a clean clone to confirm the repository reproduces
+independently of any AI-assisted work.
+
+
 
 ---
 
@@ -356,3 +403,33 @@ sides of the comparison, so the check passes on data that is missing a full day.
 Three separate checks passed on 2026-08-05: the missing-value check (a `$` is not a
 null), the transform (silent coercion), and the reconciliation (same nulled data on
 both sides). The gap is that none of them tested parseability.
+
+
+---
+
+## Limitation: declared constraints are absent from the live database
+
+`sql/01_schema.sql` declares primary keys, unique constraints, not-nulls, and
+foreign keys. `src/init_db.py` creates the tables correctly. But every table
+written by pandas uses `to_sql(..., if_exists="replace")`, which **drops the
+table and recreates it from the DataFrame schema**, discarding all constraints.
+
+Verified by reading `sqlite_master` from `rocky_top.db`. Every table is a bare
+column list with pandas default types.
+
+| Declared | Line | Enforced by |
+|---|---|---|
+| `PRIMARY KEY (order_date, store_id, category, category_source)` on `daily_sales` | 143 | Python grain check in `transform.py` |
+| `UNIQUE (order_id, order_date, store_id, product_key)` on `clean_orders` | 121 | Natural-key dedup in `transform.py` |
+| `PRIMARY KEY (product_id, new_product_id)` on `product_crosswalk` | 84 | `_validate()` 1:1 integrity check |
+| `REFERENCES stores(store_id)` | 89, 110 | Orphan checks in `check_quality.py` |
+
+**Effect.** Every correctness guarantee we designed into SQL is enforced in
+application code instead. The pipeline produces correct results, but the database
+would accept an incorrect write. The 140 duplicate rows from the 2026-07-24 stale
+file were rejected by transform logic; the declared `UNIQUE` constraint would have
+rejected them at insert, and did not exist to do so.
+
+**Fix, not implemented.** Create each table from DDL and append, or `DELETE` and
+append, rather than `if_exists="replace"`. This is the first thing we would fix
+with more time.
