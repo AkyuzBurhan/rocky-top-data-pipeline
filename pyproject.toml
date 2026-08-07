@@ -10,6 +10,9 @@ dependencies = [
     "requests>=2.31",
     "fuzzywuzzy>=0.18",
     "python-Levenshtein>=0.21",
+    "streamlit>=1.36",
+    "plotly>=5.22",
+    "statsmodels>=0.14",
 ]
 
 # Treat this as a workspace of scripts (helpers/ + src/), not an installable
