@@ -316,6 +316,53 @@ Facts about what exists:
 
 ## AI-Use Disclosure
 
+All AI use below is for the final project. **No AI assistance was used on any
+quiz or assessment**, per course policy.
+
+### Tools and what they were used for
+
+| Tool | Used for |
+|---|---|
+| Claude (chat) | Repository audit, verification of revenue and crosswalk figures, project planning, drafting |
+| Claude Code | Repo sweep against the rubric, factual sections of this document, `src/verify_tables.py`, `docs/CONTEXT.md`, `audit_gaps.md` |
+| Claude (Burhan) | `dashboard/app.py`, the Streamlit weather-sensitivity dashboard |
+| [Jack: fill in] | [Jack: fill in] |
+| [James: fill in] | [James: fill in] |
+
+### What was AI-generated
+
+- `src/verify_tables.py` was written by Claude Code from a specification we wrote,
+  then reviewed line by line before committing.
+- The factual sections of this document (what happened, evidence paths, how the
+  pipeline responded) were drafted by Claude Code from repository contents. Every
+  "Why we decided this" section was written by the team.
+- `audit_gaps.md` is an AI-generated audit against the submission checklist.
+- `dashboard/app.py` was built with AI assistance and reviewed before merging.
+
+### What was not
+
+- The pipeline itself: `src/capture.py`, `src/load_raw.py`, `src/transform.py`,
+  `src/crosswalk.py`, `src/weather.py`, `helpers/`, and `sql/01_schema.sql` were
+  written by the team over the course of the project.
+- All design decisions: SQLite over the UT MySQL server, the entity-resolution
+  scoring weights and thresholds, the department-level category taxonomy, and the
+  decision to document rather than resolve the four ambiguous product matches.
+
+### How AI output was verified
+
+Figures in this document were checked against database queries and source files
+rather than accepted as written. This caught real errors. An early AI-assisted
+summary described the entity-resolution score as `0.6 * name + 0.4 * price`;
+reading `src/crosswalk.py` showed the actual weights are `0.6 * name +
+0.2 * subclass + 0.2 * price`. The recovered 2026-08-05 revenue figure was also
+computed incorrectly on the first attempt, by applying `discount_pct` to a
+`unit_price` that already had the discount applied. Both were corrected before
+being committed.
+
+The pipeline was run from a clean clone to confirm the repository reproduces
+independently of any AI-assisted work.
+
+
 
 ---
 
