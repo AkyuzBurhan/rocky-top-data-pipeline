@@ -50,6 +50,17 @@ def _num(series):
     return pd.to_numeric(series, errors="coerce")
 
 
+def _nonnumeric(df, col):
+    """Count values that are present (not null) but do NOT parse as numbers --
+    e.g. "$72.70", "1,024". This is the class of bug that silently zeroed
+    2026-08-05: an isna() check misses them because the value is a valid
+    non-null string, so the day looked clean while its revenue was lost."""
+    if col not in df.columns:
+        return 0
+    raw = df[col]
+    return int((raw.notna() & _num(raw).isna()).sum())
+
+
 def run_quality_checks(path, expected_date, store_ids=None, product_ids=None):
     """Run all checks on one file; return a dict keyed by DQ_COLUMNS.
 
@@ -94,6 +105,18 @@ def run_quality_checks(path, expected_date, store_ids=None, product_ids=None):
         bad_discount = int(((d < 0) | (d > 100)).sum())
     if neg_quantity or neg_unit_price or bad_discount:
         flags.append("out_of_range")
+
+    # Non-numeric (but non-null) values in numeric columns -- the silent-failure
+    # class from 2026-08-05 ("$72.70" strings). Surface it as a flag so a
+    # malformed day reads RED instead of showing na_*=0 and looking healthy.
+    if n_rows:
+        nn = []
+        for col in ("unit_price", "quantity", "discount_pct"):
+            c = _nonnumeric(df, col)
+            if c:
+                nn.append(f"{col}={c}")
+        if nn:
+            flags.append("nonnumeric(" + ",".join(nn) + ")")
 
     # Orphan checks (need reference tables)
     orphan_store = orphan_product = ""

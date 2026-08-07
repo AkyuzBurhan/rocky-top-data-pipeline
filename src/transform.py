@@ -30,12 +30,25 @@ from helpers import db
 from src.crosswalk import CATEGORY_TO_DEPARTMENT
 
 
+def _clean_numeric_str(series):
+    """Strip formatting the upstream feed sends inconsistently -- currency
+    symbols, thousands separators, stray whitespace -- so values like "$72.70"
+    or "1,024.50" parse as numbers instead of silently coercing to NaN.
+
+    This is the single choke point every numeric column flows through, so the
+    normalization is applied uniformly (not special-cased to one day/column).
+    Genuinely non-numeric junk still becomes NaN below and is quarantined --
+    we normalize known formatting, we do not silently accept garbage.
+    """
+    return series.astype("string").str.strip().str.replace(r"[$,]", "", regex=True)
+
+
 def _to_int(series):
-    return pd.to_numeric(series, errors="coerce").astype("Int64")
+    return pd.to_numeric(_clean_numeric_str(series), errors="coerce").astype("Int64")
 
 
 def _to_float(series):
-    return pd.to_numeric(series, errors="coerce")
+    return pd.to_numeric(_clean_numeric_str(series), errors="coerce")
 
 
 def _record_rejected(engine, rows, reason):
