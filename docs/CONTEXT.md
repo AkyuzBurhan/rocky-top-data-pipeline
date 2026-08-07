@@ -9,7 +9,7 @@ and reproducibility test. This file does not restate them.
 
 ## 1. STATE
 
-**Hard deadlines:** submission **Sat 2026-08-09 23:59**; graded live
+**Hard deadlines:** submission **Sun 2026-08-09 23:59**; graded live
 presentation **Mon 2026-08-10**.
 
 **Done and verified working:**
