@@ -185,6 +185,12 @@ Two append-only CSV logs (written by `helpers/logs.py`):
   `unit_price = NULL` and `line_revenue = NULL`, and every `daily_sales` row
   for 2026-08-05 reports `net_revenue = 0.0` while `units_sold` is positive.
   The day's revenue is silently lost. Recorded in Limitations below.
+- **Recovered from raw:** $56,970.09 net (155 rows), computed from
+  `data/raw/orders_2026-08-05.csv` by stripping the `$` and summing
+  `unit_price * quantity`. Gross equivalent $61,474.35. The day was
+  recoverable in about fifteen minutes because the bronze layer preserved
+  the original bytes. See "Verified revenue figures" at the end of this
+  document for the corrected totals.
 
 ### Why we decided this
 
@@ -309,3 +315,44 @@ Facts about what exists:
    exercises them (no DQ row has `has_source_flag=1`).
 
 ## AI-Use Disclosure
+
+
+---
+
+## Verified revenue figures
+
+Window 2026-07-07 through 2026-08-07. All figures net unless stated.
+
+| Figure | Value | Source |
+|---|---|---|
+| Pipeline net revenue | $1,317,702.22 | `daily_sales`, reconciles to `clean_orders` |
+| 2026-08-05 recovered net | $56,970.09 | `data/raw/orders_2026-08-05.csv`, 155 rows |
+| **True net revenue** | **$1,374,672.31** | pipeline + recovered day |
+| Pipeline gross revenue | ~$1,417,583 | `daily_sales.gross_revenue` |
+| 2026-08-05 recovered gross | $61,474.35 | recovered, reverse-computed |
+| **True gross revenue** | **~$1,479,057** | pipeline + recovered day |
+
+### Gross vs net in this dataset
+
+`unit_price` in the source orders file is **already discounted**. Verified against
+`data/reference/products.csv`: P1076 has `base_price` 686.08, and orders show
+651.78 at 5% off, 583.17 at 15%, 548.86 at 20%, 617.47 at 10%. Each equals
+`base_price * (1 - discount_pct/100)`.
+
+Net revenue is therefore `unit_price * quantity`, with no further discount applied.
+`gross_revenue` is reverse-computed as `net / (1 - discount_pct/100)`, which is why
+gross carries repeating decimals while net is clean to two decimal places.
+
+Applying `discount_pct` to `unit_price` double-discounts and understates revenue.
+Any analysis built directly on the raw orders files needs to account for this.
+
+### What the reconciliation check does and does not prove
+
+The pipeline reports `daily_sales` net revenue matching `clean_orders` line revenue
+exactly. That proves `daily_sales` aggregates `clean_orders` faithfully. It cannot
+detect loss upstream of `clean_orders`: the 2026-08-05 nulls are present on both
+sides of the comparison, so the check passes on data that is missing a full day.
+
+Three separate checks passed on 2026-08-05: the missing-value check (a `$` is not a
+null), the transform (silent coercion), and the reconciliation (same nulled data on
+both sides). The gap is that none of them tested parseability.
