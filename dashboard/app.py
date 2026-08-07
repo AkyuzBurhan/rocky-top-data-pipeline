@@ -171,6 +171,12 @@ n_orders = len(prod)
 kept_pct = net / gross * 100 if gross else 0
 aov = net / n_orders if n_orders else 0
 
+
+def pct(a, b):
+    """Percent string, or an em dash when the denominator is zero (avoids nan%)."""
+    return f"{a / b * 100:.1f}%" if b else "—"
+
+
 daily_by_day = daily.groupby("order_date").agg(
     net=("net_revenue", "sum"), units=("units_sold", "sum")).reset_index()
 last_day = daily_by_day["order_date"].max()
@@ -179,6 +185,15 @@ net_today = daily_by_day.loc[daily_by_day["order_date"] == last_day, "net"].sum(
 net_prev = daily_by_day.loc[daily_by_day["order_date"] == prev_day, "net"].sum()
 units_today = int(daily_by_day.loc[daily_by_day["order_date"] == last_day, "units"].sum())
 units_prev = int(daily_by_day.loc[daily_by_day["order_date"] == prev_day, "units"].sum())
+
+# window label + zero-revenue anomaly detection (units sold but $0 net -> the
+# 2026-08-05 source-formatting class of issue). Dynamic, so it fires only if a
+# malformed day actually slips through -- not hardcoded to one date.
+win_min = daily_by_day["order_date"].min().strftime("%b %d")
+win_max = daily_by_day["order_date"].max().strftime("%b %d")
+n_win_days = daily_by_day["order_date"].nunique()
+anomaly_days = daily_by_day.loc[
+    (daily_by_day["units"] > 0) & (daily_by_day["net"] == 0), "order_date"]
 
 
 def spark(x, y, color):
@@ -198,6 +213,24 @@ def delta_html(cur, prev, fmt):
     arrow = "▲" if d >= 0 else "▼"
     return f'<div class="delta {cls}">{arrow} {fmt(abs(d))} vs same day last week</div>'
 
+
+# --- window label + zero-revenue banner (above both tabs) ------------------
+st.markdown(f'<div style="font-size:12.5px;color:{MUTED};margin:2px 2px 8px;">'
+            f'Showing <b style="color:#c7cde0;">{win_min} → {win_max}</b> · '
+            f'{n_win_days} days · {len(sel_stores)} stores · {len(sel_cats)} categories '
+            '<span style="color:#6b7183;">(window grows as the daily pipeline adds days)</span>'
+            '</div>', unsafe_allow_html=True)
+
+if len(anomaly_days):
+    days_str = ", ".join(pd.to_datetime(anomaly_days).dt.strftime("%Y-%m-%d"))
+    st.markdown(
+        f'<div style="background:rgba(242,193,78,0.10);border:1px solid rgba(242,193,78,0.35);'
+        f'border-radius:10px;padding:10px 14px;font-size:13px;color:#f2c14e;margin:0 2px 12px;">'
+        f'⚠️ <b>{days_str}</b> shows $0 net revenue with positive units — a source-side price '
+        f'formatting issue (non-numeric price strings), not a real zero. The pipeline recovers '
+        f'these from the preserved raw layer; a lingering $0 means the DB predates that rebuild. '
+        f'See <code>docs/DECISIONS.md</code> → “Verified revenue figures”.</div>',
+        unsafe_allow_html=True)
 
 # ==========================================================================
 # TABS
@@ -236,12 +269,14 @@ with r1[1]:
 with r1[2]:
     with st.container(border=True):
         st.markdown('<div class="tl">Revenue kept after discounts</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="big">{kept_pct:.1f}<span class="u">%</span></div>'
+        kept_disp = (f'{kept_pct:.1f}<span class="u">%</span>' if gross
+                     else '<span class="u">n/a</span>')
+        st.markdown(f'<div class="big">{kept_disp}</div>'
                     f'<div class="sub">net {money(net, k=True)} of gross {money(gross, k=True)}</div>',
                     unsafe_allow_html=True)
         st.markdown(f'<div class="tl" style="margin-top:14px;">Discount given</div>'
                     f'<div class="big" style="font-size:30px;">{money(disc, k=True)}</div>'
-                    f'<div class="sub">{disc/gross*100:.1f}% of gross revenue</div>',
+                    f'<div class="sub">{pct(disc, gross)} of gross revenue</div>',
                     unsafe_allow_html=True)
 
 with r1[3]:
