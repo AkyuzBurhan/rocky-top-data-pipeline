@@ -15,6 +15,7 @@ Usage:
 import uuid
 
 import pandas as pd
+from sqlalchemy import text
 
 from helpers import config, io, db, logs
 from src.capture import classify_file
@@ -40,6 +41,25 @@ def _loaded_dates(engine):
         return {io.expected_date_from_filename(f) for f in df["source_file"]}
     except Exception:
         return set()
+
+
+def _sync_ingestion_log_table(engine):
+    """Mirror the authoritative data/ingestion_log.csv into the SQLite
+    `ingestion_log` table so the table is actually queryable instead of sitting
+    empty (verify_tables.py otherwise reports 0 rows every run). The CSV stays
+    the source of truth; the table is refreshed from it on each load. We DELETE
+    then append rather than to_sql(replace=...) so the schema init_db created
+    (run_id PRIMARY KEY, NOT NULL columns) is preserved."""
+    if not config.INGESTION_LOG_CSV.exists():
+        return 0
+    df = pd.read_csv(config.INGESTION_LOG_CSV, dtype=str)
+    if df.empty:
+        return 0
+    df["rows_loaded"] = pd.to_numeric(df["rows_loaded"], errors="coerce").astype("Int64")
+    with engine.begin() as conn:
+        conn.execute(text("DELETE FROM ingestion_log"))   # full refresh
+    df.to_sql("ingestion_log", engine, if_exists="append", index=False)
+    return len(df)
 
 
 def load_raw():
@@ -91,8 +111,10 @@ def load_raw():
         print(f"[load_raw] {path.name}: loaded {len(df)} rows")
 
     total = pd.read_sql("SELECT COUNT(*) AS n FROM raw_orders", engine)["n"][0]
+    synced = _sync_ingestion_log_table(engine)
     print(f"[load_raw] done. files loaded={loaded}, skipped={skipped}, "
           f"empty={empty}; raw_orders now has {total} rows")
+    print(f"[load_raw] ingestion_log table synced from CSV: {synced} rows")
     return total
 
 
