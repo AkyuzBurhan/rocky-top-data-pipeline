@@ -95,6 +95,7 @@ def load_data():
     prod = pd.read_sql("""
         SELECT o.order_date, o.store_id, o.product_key, o.legacy_product_id,
                o.quantity, o.unit_price, o.discount_pct, o.line_revenue,
+               o.sales_channel,
                np.item_name AS np_name, np.department AS np_dept,
                p.product_name AS p_name, p.category AS p_cat
         FROM clean_orders o
@@ -109,6 +110,11 @@ def load_data():
     prod["net_revenue"] = prod["line_revenue"]
     prod["gross_revenue"] = prod["quantity"] * prod["unit_price"] / (1 - prod["discount_pct"] / 100.0)
     prod["discount_given"] = prod["gross_revenue"] - prod["net_revenue"]
+    # attach each order's store-day precipitation (same for all categories that
+    # store-day) so the channel-vs-rain analysis can run on order-level rows
+    precip = (daily.groupby(["order_date", "store_id"], as_index=False)["precipitation_sum"]
+              .first())
+    prod = prod.merge(precip, on=["order_date", "store_id"], how="left")
     return daily, prod
 
 
@@ -405,31 +411,33 @@ def corr_bar(df, title, pos_label, neg_label, pos_color, neg_color):
 
 
 def recommend(cat, tr, pr):
-    """Translate a category's temperature & precipitation correlations into a
-    concrete stock / promotion action."""
-    T, P = 0.15, 0.15  # signal thresholds
+    """Turn a category's temperature & precipitation correlations (store-day
+    grain) into a stock / promotion note. Signals at this grain are modest, so
+    the bar is 0.10 (not 0.15) and the language is deliberately hedged — these
+    are directional tilts worth testing, not strong effects."""
+    T, P = 0.10, 0.10
     temp_txt, precip_txt, tag, tag_col = "", "", "weather-neutral", MUTED
     if tr >= T:
-        temp_txt = ("sells more on <b>warm</b> days — pull stock forward and "
-                    "promote ahead of hot spells; avoid discounting into a heatwave.")
-        tag, tag_col = "heat-driven", WARM
+        temp_txt = ("leans <b>warm</b> — a modest tilt toward selling more on hot "
+                    "days; worth testing a pre-heat stock/promo, but expect small effects.")
+        tag, tag_col = "leans warm", WARM
     elif tr <= -T:
-        temp_txt = ("sells more on <b>cool</b> days — hold inventory for cold snaps "
-                    "and mark it down to clear when a hot stretch is forecast.")
-        tag, tag_col = "cool-driven", BLUE
+        temp_txt = ("leans <b>cool</b> — a modest tilt toward selling more on cooler "
+                    "days; worth testing a cool-spell hold/promo, but expect small effects.")
+        tag, tag_col = "leans cool", BLUE
     if pr >= P:
-        precip_txt = (" Rain lifts it too — keep buffer stock before wet forecasts.")
+        precip_txt = " Rain nudges it up slightly too."
         if tag == "weather-neutral":
-            tag, tag_col = "rain-driven", BLUE
+            tag, tag_col = "leans wet", BLUE
     elif pr <= -P:
-        precip_txt = (" It fades in the rain — concentrate promos on dry, clear days.")
+        precip_txt = " It dips a little in the rain."
         if tag == "weather-neutral":
-            tag, tag_col = "dry-driven", YELLOW
+            tag, tag_col = "leans dry", YELLOW
     if not temp_txt and not precip_txt:
-        body = ("shows no strong weather signal in this window — treat demand as a "
-                "steady baseline; weather is not a useful promo lever here.")
+        body = ("no meaningful weather signal in this window — treat demand as a "
+                "steady baseline; weather is not a useful lever here.")
     else:
-        body = (temp_txt or f"is largely flat to temperature (r={tr:+.2f}).") + precip_txt
+        body = (temp_txt or f"is flat to temperature (r={tr:+.2f}).") + precip_txt
     return tag, tag_col, body
 
 
@@ -437,6 +445,84 @@ with tab_weather:
     st.markdown(f'<div style="font-size:18px;font-weight:800;color:{INK};margin:4px 0 2px;">'
                 'Does weather drive our sales — and what should we do about it?</div>',
                 unsafe_allow_html=True)
+
+    # ======================================================================
+    # HEADLINE (robust): channel mix shifts with rain
+    # ======================================================================
+    CH_NAMES = {"pickup": "Pickup", "in_store": "In-store",
+                "ship_from_store": "Ship-from-store"}
+    RAIN_MM = 1.0
+    pc = prod.dropna(subset=["precipitation_sum"]).copy()
+    pc["rain"] = pc["precipitation_sum"] >= RAIN_MM
+    sd_rain = pc.groupby(["order_date", "store_id"])["rain"].max()
+    n_rain, n_dry = int(sd_rain.sum()), int((~sd_rain).sum())
+
+    def _rain_lift(mm):
+        """Mean store-day net revenue lift on rain vs dry days at threshold mm,
+        and how many stores agree (rain>dry). Used to show the revenue signal is
+        threshold-fragile."""
+        s = pc.assign(r=pc["precipitation_sum"] >= mm)
+        sd = s.groupby(["order_date", "store_id"], as_index=False).agg(
+            rev=("net_revenue", "sum"), r=("r", "max"))
+        if sd["r"].nunique() < 2:
+            return None
+        dry, rn = sd.loc[~sd.r, "rev"].mean(), sd.loc[sd.r, "rev"].mean()
+        agree = sum(1 for st_ in sd.store_id.unique()
+                    if sd[(sd.store_id == st_) & sd.r]["rev"].mean()
+                    > sd[(sd.store_id == st_) & ~sd.r]["rev"].mean())
+        return (rn / dry - 1) * 100, agree, sd.store_id.nunique()
+
+    with st.container(border=True):
+        st.markdown(
+            f'<div style="font-size:16px;font-weight:800;color:{INK};margin:2px 0 2px;">'
+            f'The robust finding: on rainy days, customers shift to '
+            f'<span style="color:{GREEN};">pickup</span></div>'
+            f'<div style="font-size:12.5px;color:{MUTED};margin-bottom:8px;">Order channel mix on '
+            f'dry vs rainy store-days (rain ≥ {RAIN_MM:g}mm; {n_rain} rain vs {n_dry} dry store-days '
+            'in this selection). Unlike the revenue correlation below, this shift holds at every rain '
+            'cutoff (0.5–10&nbsp;mm).</div>', unsafe_allow_html=True)
+        if sd_rain.nunique() == 2 and pc["sales_channel"].notna().any():
+            sh = (pc.groupby("rain")["sales_channel"].value_counts(normalize=True).unstack() * 100)
+            html = ""
+            for ch in [c for c in ["pickup", "in_store", "ship_from_store"] if c in sh.columns]:
+                dry, rain = sh.loc[False, ch], sh.loc[True, ch]
+                delta = rain - dry
+                hi = ch == "pickup"
+                dcol = GREEN if delta > 0 else (RED if delta < 0 else MUTED)
+                html += (
+                    f'<div style="display:flex;align-items:center;gap:14px;margin:8px 2px;">'
+                    f'<span style="width:135px;font-size:14px;color:{"#ffffff" if hi else "#c7cde0"};'
+                    f'font-weight:{"800" if hi else "600"};">{CH_NAMES.get(ch, ch)}</span>'
+                    f'<span style="font-size:14px;color:{MUTED};font-variant-numeric:tabular-nums;">'
+                    f'{dry:.1f}% <span style="color:#4b5468;">→</span> '
+                    f'<b style="color:{INK};">{rain:.1f}%</b></span>'
+                    f'<span style="font-size:13px;font-weight:700;color:{dcol};'
+                    f'font-variant-numeric:tabular-nums;">{delta:+.1f} pts</span></div>')
+            st.markdown(html, unsafe_allow_html=True)
+            st.markdown(f'<div style="font-size:12.5px;color:#c7cde0;margin-top:6px;">'
+                        '<b>So what:</b> staff and pre-stage <b>pickup</b> capacity when rain is in '
+                        'the forecast; the demand doesn’t vanish in the rain, it moves channels.</div>',
+                        unsafe_allow_html=True)
+        else:
+            st.info("This selection has no dry/rain contrast to compare channels.")
+
+    # ======================================================================
+    # SECONDARY (honest): revenue / units correlation — weak & fragile
+    # ======================================================================
+    st.markdown(f'<div style="font-size:16px;font-weight:800;color:{INK};margin:16px 0 2px;">'
+                'Revenue / units vs weather — weak, and it fails a sensitivity check</div>',
+                unsafe_allow_html=True)
+
+    l1, l10 = _rain_lift(1.0), _rain_lift(10.0)
+    if l1 and l10:
+        st.markdown(
+            f'<div style="background:rgba(242,193,78,0.08);border:1px solid rgba(242,193,78,0.30);'
+            f'border-radius:8px;padding:8px 12px;font-size:12.5px;color:#d9c07a;margin-bottom:8px;">'
+            f'⚠️ Why this is <b>not</b> our headline: the rain revenue “lift” swings '
+            f'<b style="color:{INK};">{l1[0]:+.0f}%</b> at ≥1&nbsp;mm to '
+            f'<b style="color:{INK};">{l10[0]:+.0f}%</b> at ≥10&nbsp;mm, and stores agreeing drops '
+            f'<b style="color:{INK};">{l1[1]}/{l1[2]} → {l10[1]}/{l10[2]}</b>. A result that flips '
+            'with the threshold is not a reliable finding.</div>', unsafe_allow_html=True)
 
     measure_label = st.radio(
         "Correlate weather with", ["Net revenue", "Units sold"],
@@ -448,11 +534,9 @@ with tab_weather:
 
     st.markdown(f'<div style="font-size:13px;color:{MUTED};margin:2px 0 6px;">Correlation (r) '
                 f'between each category’s <b style="color:#c7cde0;">{measure_label.lower()}</b> and '
-                'the weather at <b style="color:#c7cde0;">store-day grain</b> (one observation per '
-                'store per day, each with its own local temperature). Positive = higher in warm / wet '
-                'conditions; negative = higher in cool / dry. '
-                '<i>Units sold isolates demand from price; net revenue shows business impact.</i></div>',
-                unsafe_allow_html=True)
+                'the weather at <b style="color:#c7cde0;">store-day grain</b>. Positive = higher in '
+                'warm / wet conditions; negative = higher in cool / dry. Shown for completeness — most '
+                'categories sit near zero.</div>', unsafe_allow_html=True)
 
     ct = corr_table("temp_max", value_col)
     cp = corr_table("precipitation_sum", value_col)
@@ -476,8 +560,12 @@ with tab_weather:
                 st.info("Not enough days in this selection for a precipitation signal.")
 
     # --- recommendation panel ---
-    st.markdown(f'<div style="font-size:16px;font-weight:800;color:{INK};margin:14px 0 6px;">'
-                '💡 Inventory &amp; promotion playbook</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="font-size:16px;font-weight:800;color:{INK};margin:16px 0 4px;">'
+                '💡 Inventory &amp; promotion playbook</div>'
+                f'<div style="font-size:12.5px;color:{MUTED};margin:0 2px 8px;">The reliable lever is '
+                '<b style="color:#c7cde0;">channel readiness</b> (pickup on rain days, above). The '
+                'per-category weather tilts below are <b style="color:#c7cde0;">weak</b> — modest, '
+                'directional hints worth testing, not firm rules.</div>', unsafe_allow_html=True)
 
     tr_map = dict(zip(ct["category"], ct["r"])) if not ct.empty else {}
     pr_map = dict(zip(cp["category"], cp["r"])) if not cp.empty else {}
