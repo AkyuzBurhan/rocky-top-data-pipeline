@@ -403,3 +403,33 @@ sides of the comparison, so the check passes on data that is missing a full day.
 Three separate checks passed on 2026-08-05: the missing-value check (a `$` is not a
 null), the transform (silent coercion), and the reconciliation (same nulled data on
 both sides). The gap is that none of them tested parseability.
+
+
+---
+
+## Limitation: declared constraints are absent from the live database
+
+`sql/01_schema.sql` declares primary keys, unique constraints, not-nulls, and
+foreign keys. `src/init_db.py` creates the tables correctly. But every table
+written by pandas uses `to_sql(..., if_exists="replace")`, which **drops the
+table and recreates it from the DataFrame schema**, discarding all constraints.
+
+Verified by reading `sqlite_master` from `rocky_top.db`. Every table is a bare
+column list with pandas default types.
+
+| Declared | Line | Enforced by |
+|---|---|---|
+| `PRIMARY KEY (order_date, store_id, category, category_source)` on `daily_sales` | 143 | Python grain check in `transform.py` |
+| `UNIQUE (order_id, order_date, store_id, product_key)` on `clean_orders` | 121 | Natural-key dedup in `transform.py` |
+| `PRIMARY KEY (product_id, new_product_id)` on `product_crosswalk` | 84 | `_validate()` 1:1 integrity check |
+| `REFERENCES stores(store_id)` | 89, 110 | Orphan checks in `check_quality.py` |
+
+**Effect.** Every correctness guarantee we designed into SQL is enforced in
+application code instead. The pipeline produces correct results, but the database
+would accept an incorrect write. The 140 duplicate rows from the 2026-07-24 stale
+file were rejected by transform logic; the declared `UNIQUE` constraint would have
+rejected them at insert, and did not exist to do so.
+
+**Fix, not implemented.** Create each table from DDL and append, or `DELETE` and
+append, rather than `if_exists="replace"`. This is the first thing we would fix
+with more time.
