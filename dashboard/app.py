@@ -362,15 +362,17 @@ with r2[3]:
 # ==========================================================================
 # TAB 2 — WEATHER DEEP-DIVE
 # ==========================================================================
-def corr_table(weather_col):
-    """Per-category Pearson correlation between daily net revenue and a weather
-    variable, plus sample size. Sorted most-positive first."""
+def corr_table(weather_col, value_col):
+    """Per-category Pearson correlation between a daily measure (net revenue OR
+    units sold) and a weather variable, plus sample size. Sorted most-positive
+    first. Units sold is the price-neutral demand signal; net revenue also
+    reflects price/mix."""
     out = []
     for c in sel_cats:
         sub = (daily[daily["category"] == c].groupby("order_date", as_index=False)
-               .agg(rev=("net_revenue", "sum"), w=(weather_col, "mean")))
-        if len(sub) >= 3 and sub["w"].nunique() > 1 and sub["rev"].nunique() > 1:
-            out.append({"category": c, "r": sub["rev"].corr(sub["w"]), "n": len(sub)})
+               .agg(val=(value_col, "sum"), w=(weather_col, "mean")))
+        if len(sub) >= 3 and sub["w"].nunique() > 1 and sub["val"].nunique() > 1:
+            out.append({"category": c, "r": sub["val"].corr(sub["w"]), "n": len(sub)})
     return pd.DataFrame(out).sort_values("r", ascending=False) if out else pd.DataFrame()
 
 
@@ -427,21 +429,33 @@ def recommend(cat, tr, pr):
 
 with tab_weather:
     st.markdown(f'<div style="font-size:18px;font-weight:800;color:{INK};margin:4px 0 2px;">'
-                'Does weather drive our sales — and what should we do about it?</div>'
-                f'<div style="font-size:13px;color:{MUTED};margin-bottom:6px;">Correlation (r) '
-                'between each category’s daily net revenue and the day’s weather, over the '
-                'current selection. Positive = sells more in warm / wet conditions; negative = '
-                'sells more in cool / dry conditions. |r| ≳ 0.15 is a usable signal at this sample size.</div>',
+                'Does weather drive our sales — and what should we do about it?</div>',
                 unsafe_allow_html=True)
 
-    ct = corr_table("temp_max")
-    cp = corr_table("precipitation_sum")
+    measure_label = st.radio(
+        "Correlate weather with", ["Net revenue", "Units sold"],
+        horizontal=True, index=0,
+        help="Net revenue = business impact, but it mixes in product price — a few "
+             "high-priced sales can inflate it. Units sold = price-neutral demand "
+             "signal, fairer across cheap vs expensive categories. Compare both.")
+    value_col = "net_revenue" if measure_label == "Net revenue" else "units_sold"
+
+    st.markdown(f'<div style="font-size:13px;color:{MUTED};margin:2px 0 6px;">Correlation (r) '
+                f'between each category’s daily <b style="color:#c7cde0;">{measure_label.lower()}</b> '
+                'and the day’s weather, over the current selection. Positive = higher in warm / wet '
+                'conditions; negative = higher in cool / dry conditions. |r| ≳ 0.15 is a usable '
+                'signal at this sample size. '
+                '<i>Units sold isolates demand from price; net revenue shows business impact.</i></div>',
+                unsafe_allow_html=True)
+
+    ct = corr_table("temp_max", value_col)
+    cp = corr_table("precipitation_sum", value_col)
 
     wc = st.columns(2, gap="medium")
     with wc[0]:
         with st.container(border=True):
             if not ct.empty:
-                st.plotly_chart(corr_bar(ct, "Revenue vs temperature",
+                st.plotly_chart(corr_bar(ct, f"{measure_label} vs temperature",
                                          "warm-weather ▶", "◀ cool-weather", WARM, BLUE),
                                 use_container_width=True, config={"displayModeBar": False})
             else:
@@ -449,7 +463,7 @@ with tab_weather:
     with wc[1]:
         with st.container(border=True):
             if not cp.empty:
-                st.plotly_chart(corr_bar(cp, "Revenue vs precipitation",
+                st.plotly_chart(corr_bar(cp, f"{measure_label} vs precipitation",
                                          "rain-driven ▶", "◀ dry-driven", BLUE, YELLOW),
                                 use_container_width=True, config={"displayModeBar": False})
             else:
