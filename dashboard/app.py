@@ -283,11 +283,14 @@ with r1[3]:
     with st.container(border=True):
         st.markdown('<div class="tl">Weather sensitivity by category</div>', unsafe_allow_html=True)
         rows = []
+        n_obs = 0
         for c in sel_cats:
-            sub = (daily[daily["category"] == c].groupby("order_date", as_index=False)
+            sub = (daily[daily["category"] == c]
+                   .groupby(["order_date", "store_id"], as_index=False)
                    .agg(rev=("net_revenue", "sum"), w=("temp_max", "mean")))
             if len(sub) >= 3 and sub["w"].nunique() > 1 and sub["rev"].nunique() > 1:
                 rows.append((c, sub["rev"].corr(sub["w"])))
+                n_obs = max(n_obs, len(sub))
         rows.sort(key=lambda t: t[1], reverse=True)
         html = ""
         for c, r in rows:
@@ -298,7 +301,7 @@ with r1[3]:
                      f'<span style="font-size:11px;color:{MUTED};">{tag}</span></span>'
                      f'<span class="pill" style="color:{col};background:{bg};">{r:+.2f}</span></div>')
         st.markdown(html, unsafe_allow_html=True)
-        st.markdown(f'<div class="sub" style="margin-top:6px;">r = corr(daily revenue, max temp)</div>',
+        st.markdown(f'<div class="sub" style="margin-top:6px;">r = corr(store-day revenue, max temp) · n≈{n_obs}</div>',
                     unsafe_allow_html=True)
 
 # ---- ROW 2 ----
@@ -363,13 +366,16 @@ with r2[3]:
 # TAB 2 — WEATHER DEEP-DIVE
 # ==========================================================================
 def corr_table(weather_col, value_col):
-    """Per-category Pearson correlation between a daily measure (net revenue OR
-    units sold) and a weather variable, plus sample size. Sorted most-positive
-    first. Units sold is the price-neutral demand signal; net revenue also
-    reflects price/mix."""
+    """Per-category Pearson correlation between a measure (net revenue OR units
+    sold) and a weather variable, at STORE-DAY grain: one observation per
+    (store, day), so each observation has its own local temperature and the
+    weather value is not repeated across categories. Aggregating instead to
+    chain-day (averaging stores) smooths noise and inflates r on a tiny n=~28;
+    store-day gives the honest, higher-n estimate. Sorted most-positive first."""
     out = []
     for c in sel_cats:
-        sub = (daily[daily["category"] == c].groupby("order_date", as_index=False)
+        sub = (daily[daily["category"] == c]
+               .groupby(["order_date", "store_id"], as_index=False)
                .agg(val=(value_col, "sum"), w=(weather_col, "mean")))
         if len(sub) >= 3 and sub["w"].nunique() > 1 and sub["val"].nunique() > 1:
             out.append({"category": c, "r": sub["val"].corr(sub["w"]), "n": len(sub)})
@@ -441,10 +447,10 @@ with tab_weather:
     value_col = "net_revenue" if measure_label == "Net revenue" else "units_sold"
 
     st.markdown(f'<div style="font-size:13px;color:{MUTED};margin:2px 0 6px;">Correlation (r) '
-                f'between each category’s daily <b style="color:#c7cde0;">{measure_label.lower()}</b> '
-                'and the day’s weather, over the current selection. Positive = higher in warm / wet '
-                'conditions; negative = higher in cool / dry conditions. |r| ≳ 0.15 is a usable '
-                'signal at this sample size. '
+                f'between each category’s <b style="color:#c7cde0;">{measure_label.lower()}</b> and '
+                'the weather at <b style="color:#c7cde0;">store-day grain</b> (one observation per '
+                'store per day, each with its own local temperature). Positive = higher in warm / wet '
+                'conditions; negative = higher in cool / dry. '
                 '<i>Units sold isolates demand from price; net revenue shows business impact.</i></div>',
                 unsafe_allow_html=True)
 
@@ -495,7 +501,9 @@ with tab_weather:
                     f'<b style="text-transform:capitalize;">{c}</b> {body}</div>',
                     unsafe_allow_html=True)
 
+    n_note = int(ct["n"].max()) if not ct.empty else 0
     st.markdown(f'<div style="font-size:11.5px;color:{MUTED};margin-top:10px;">'
-                'Note: correlation over ~4 weeks is directional, not proof of causation. '
-                'Confounders (weekday, promotions, restocks) are not held constant — use these '
-                'as hypotheses to test, not fixed rules.</div>', unsafe_allow_html=True)
+                f'Computed at store-day grain (~{n_note} observations per category, not chain-day '
+                'n≈28 — aggregating stores would smooth noise and inflate r). Still directional, not '
+                'causal: store-days within a day share demand shocks (weekday, promotions), so treat '
+                'these as hypotheses to test, not fixed rules.</div>', unsafe_allow_html=True)
