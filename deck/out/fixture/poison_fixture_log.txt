@@ -1,0 +1,13 @@
+poison fixture · executed 2026-08-08 · pipeline code at commit 3676313
+fixture: C:\Users\conno\AppData\Local\Temp\poison_fixture_bstltp32\orders_2026-08-08.csv  (5 rows, every unit_price a $-prefixed string)
+
+>>> dq.run_quality_checks(fixture, expected_date='2026-08-08')
+    n_rows=5  na_unit_price=0  (isna() sees a healthy file)
+    flags: schema_new_product_col;nonnumeric(unit_price=5)
+
+>>> transform._to_float(raw.unit_price)   # the fixed parser
+    ['$19.99', '$157.12', '$72.70', '$8.45', '$249.00']
+    -> [19.99, 157.12, 72.7, 8.45, 249.0]   (5/5 recovered)
+
+GATE FIRED: the file reads clean to null checks but is flagged nonnumeric(unit_price=5); the parser recovers every value.
+no repo state touched: fixture in OS temp, no writes to data/ or rocky_top.db
