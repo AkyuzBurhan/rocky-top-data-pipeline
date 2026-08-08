@@ -46,11 +46,13 @@ ROWS = [
 ]
 
 
-def pipeline_code_commit():
-    """Short sha of the last commit touching the pipeline code under test."""
-    return subprocess.run(
-        ["git", "log", "-1", "--format=%h", "--", "src/", "helpers/"],
-        cwd=ROOT, capture_output=True, text=True).stdout.strip()
+def repo_head():
+    """Short sha of HEAD in the repo this script runs from, read at runtime
+    so regenerated artifacts always cite the checkout that produced them."""
+    r = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                       cwd=ROOT, capture_output=True, text=True)
+    sha = r.stdout.strip()
+    return sha if r.returncode == 0 and sha else "uncommitted"
 
 
 def render_log_png(text, png_path):
@@ -96,10 +98,10 @@ def main():
     parse_ok = recovered == 5 and all(
         abs(a - b) < 1e-9 for a, b in zip(parsed.tolist(), expected))
 
-    sha = pipeline_code_commit()
+    sha = repo_head()
     today = date.today().isoformat()
     log = "\n".join([
-        f"poison fixture · executed {today} · pipeline code at commit {sha}",
+        f"poison fixture · executed {today} · repo HEAD {sha}",
         f"fixture: {fixture}  (5 rows, every unit_price a $-prefixed string)",
         "",
         ">>> dq.run_quality_checks(fixture, expected_date='2026-08-08')",

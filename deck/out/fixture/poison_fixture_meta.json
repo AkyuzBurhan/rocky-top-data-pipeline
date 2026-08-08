@@ -1,8 +1,8 @@
 {
   "date": "2026-08-08",
-  "commit": "3676313",
+  "commit": "1c4884f",
   "flags": "schema_new_product_col;nonnumeric(unit_price=5)",
   "gate_fired": true,
   "parse_ok": true,
-  "fixture": "C:\\Users\\conno\\AppData\\Local\\Temp\\poison_fixture_bstltp32\\orders_2026-08-08.csv"
+  "fixture": "C:\\Users\\conno\\AppData\\Local\\Temp\\poison_fixture_t4e8smht\\orders_2026-08-08.csv"
 }

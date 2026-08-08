@@ -1,5 +1,5 @@
-poison fixture · executed 2026-08-08 · pipeline code at commit 3676313
-fixture: C:\Users\conno\AppData\Local\Temp\poison_fixture_bstltp32\orders_2026-08-08.csv  (5 rows, every unit_price a $-prefixed string)
+poison fixture · executed 2026-08-08 · repo HEAD 1c4884f
+fixture: C:\Users\conno\AppData\Local\Temp\poison_fixture_t4e8smht\orders_2026-08-08.csv  (5 rows, every unit_price a $-prefixed string)
 
 >>> dq.run_quality_checks(fixture, expected_date='2026-08-08')
     n_rows=5  na_unit_price=0  (isna() sees a healthy file)
