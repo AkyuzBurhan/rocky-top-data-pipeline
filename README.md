@@ -101,3 +101,7 @@ Documented in full in `docs/DECISIONS.md`. The main ones:
 
 Disable the daily GitHub Action in `.github/workflows/daily_capture.yml`. It will
 otherwise keep committing to this repo indefinitely.
+
+The predecessor repo (`jdyess-cell/BZAN-545-Final-Project`) has its own
+`Collect Daily Orders` cron that was never disabled at the 08-03 consolidation;
+it has been firing and failing daily since. Disable that workflow too.
