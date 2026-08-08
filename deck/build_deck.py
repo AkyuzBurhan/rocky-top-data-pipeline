@@ -309,10 +309,10 @@ def slide_6(prs):
     for dy in (-0.55, -0.275, 0.0, 0.275, 0.55):
         d.connector(s, 3.9, 3.65, 9.43, 3.65 + dy)
 
-    # NULL tail from archive lag
-    d.stroke_box(s, 9.43, 4.75, 3.3, 0.42, fill=d.TINT8, stroke=None)
-    d.add_text(s, 9.68, 4.75, 2.8, 0.42,
-               [[(c.S6_NULL_TAIL, d.SANS, d.FOOT_SIZE, d.GRAY)]],
+    # date coverage: 29 of 32, the three absent dates are the incidents
+    d.stroke_box(s, 9.43, 4.75, 3.3, 0.62, fill=d.TINT8, stroke=None)
+    d.add_text(s, 9.68, 4.75, 2.8, 0.62,
+               [("mix", c.S6_COVERAGE, d.FOOT_SIZE, d.GRAY)],
                anchor=MSO_ANCHOR.MIDDLE, space_after=0)
     d.add_notes(s, c.S6_NOTES)
 

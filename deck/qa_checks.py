@@ -14,7 +14,10 @@ from pptx.util import Emu
 
 HERE = Path(__file__).resolve().parent
 PPTX = HERE / "out" / "BZAN545_Final_Deck.pptx"
-PLAN = HERE.parent / "plan.md"
+# canonical home is docs/plan.md (close-out); root plan.md is the pre-move
+# fallback so the check runs in either state
+_PLAN_CANDIDATES = (HERE.parent / "docs" / "plan.md", HERE.parent / "plan.md")
+PLAN = next((p for p in _PLAN_CANDIDATES if p.exists()), _PLAN_CANDIDATES[0])
 
 FONT_WHITELIST = {"IBM Plex Sans", "IBM Plex Sans SmBld", "IBM Plex Sans Medm",
                   "IBM Plex Mono", "IBM Plex Mono SmBld"}
@@ -44,6 +47,8 @@ if _meta.exists():
     _m = json.loads(_meta.read_text(encoding="utf-8"))
     NUM_ALLOW |= {_m["commit"], _m["date"], "2026-08-08", "08-08",
                   "503-504", "565-566"}
+    # a sha like 1c4884f tokenizes as its digit runs; allow those too
+    NUM_ALLOW |= set(re.findall(r"\d[\d,.\-]*\d|\d", _m["commit"]))
 FOOTER_LABELS = {"1", "2", "3", "4", "5", "6", "7a", "7b", "8", "9", "10",
                  "A1", "A2", "A3"}
 

@@ -54,6 +54,12 @@ S1_NOTES = [
     'about a process that notices when it\'s wrong."',
     "- Tease both honesty beats, spoil neither: no pickup numbers, no "
     "threshold table until 7a/7b",
+    "- If the migration or 'was it all live' comes up, volunteer it, same "
+    "pattern as the 7a caveat: 32 consecutive days of raw capture, every "
+    "file preserved; scheduled automation ran in the original repo (30 "
+    "Actions runs through 08-07), the earliest files were captured before "
+    "the schedule was cut over, and everything carried over intact on "
+    "08-03",
     "- Handoff: Jack on the two design choices that did the protective work",
 ]
 
@@ -80,6 +86,15 @@ S2_NOTES = [
     "missing expected column with NULLs instead of raising, so the day "
     "would load with NULL prices and surface as missing revenue "
     "downstream; reorder-proof is not rename-proof.",
+    "Q (not James) · If asked why the early raw files land in one commit: "
+    "daily capture ran in our original repo (30 Actions runs through "
+    "08-07); we consolidated into this one on 08-03, so the earlier raw "
+    "files arrive in the migration commit intact. The earliest days "
+    "predate the old repo's schedule and were carried over with "
+    "everything else; per-day automation from 08-04 onward is in this "
+    "repo's Actions history. If pressed whether the old schedule still "
+    "runs: yes, still firing and failing daily since the migration; "
+    "both repos' workflows are on the post-course shutdown list.",
 ]
 
 # --- slide 3 --------------------------------------------------------------
@@ -130,6 +145,15 @@ S3_NOTES = [
     "missing expected column with NULLs instead of raising, so the day "
     "would load with NULL prices and surface as missing revenue "
     "downstream; reorder-proof is not rename-proof.",
+    "Q (not James) · If asked why the early raw files land in one commit: "
+    "daily capture ran in our original repo (30 Actions runs through "
+    "08-07); we consolidated into this one on 08-03, so the earlier raw "
+    "files arrive in the migration commit intact. The earliest days "
+    "predate the old repo's schedule and were carried over with "
+    "everything else; per-day automation from 08-04 onward is in this "
+    "repo's Actions history. If pressed whether the old schedule still "
+    "runs: yes, still firing and failing daily since the migration; "
+    "both repos' workflows are on the post-course shutdown list.",
     "Cut order 3 (only under real pressure): compress this table onto "
     "slide 2's diagram, -1.0; costs Burhan airtime",
 ]
@@ -216,15 +240,16 @@ S6_TITLE = ("Weather attaches at store-day: 1,367 rows carry only 232 "
 S6_LEFT = ("232", "independent weather observations", "8 stores × 29 dates")
 S6_RIGHT = ("1,367", "daily_sales rows · category grain")
 S6_JOIN_LABEL = "attaches at store-day"
-S6_NULL_TAIL = "NULL tail · archive lag"
+# verified 2026-08-08: daily_sales carries exactly 29 of the 32 window
+# dates; the three absent dates are slide 3's incidents
+S6_COVERAGE = ("29 of 32 dates · 3 incident days contributed no rows "
+               "(07-24 · 08-03 · 08-06)")
 S6_NOTES = [
     "James, 2:30",
     "- Weather joins at store-day grain: 8 stores × 29 dates = 232 "
     "independent observations",
     "- 1,367 analysis rows share those 232 observations; rows are not "
     "independent evidence about weather",
-    "- NULL tail: most recent days lag the weather archive; left NULL, "
-    "never imputed",
     "- This is why every weather claim gets an independence caveat; "
     "Connor takes the findings",
     "- Grain: daily_sales is store × day × category (7 categories); 232 "
@@ -232,10 +257,13 @@ S6_NOTES = [
     "- Why 1,367 rows share only 232 weather observations: weather joins "
     "on (store, day), so every category row of a store-day inherits that "
     "store-day's single weather row",
-    "- NULL-tail status at lock: the archive-lag mechanism is real "
-    "(weather.py: the ERA5 archive trails by a few days) but in the "
-    "locked 08-07 build the archive had caught up; zero NULL weather "
-    "rows at lock",
+    "- Why 29 of 32 dates: the three absent dates are slide 3's "
+    "incidents; 07-24 rows were 07-23 dupes and quarantined, 08-03 was "
+    "the empty file, 08-06 was the 404; the weather grain wears the "
+    "incident timeline",
+    "- Archive lag is a design mechanism, not a current state: zero NULL "
+    "weather rows at lock; the mechanism is real (weather.py: the ERA5 "
+    "archive trails by a few days), the tail happened to be empty",
     "- Handoff: 'Connor, with the one effect that survived'",
 ]
 
@@ -279,15 +307,15 @@ S7B_MIX_LABEL = "store mix"
 S7B_MIX_1 = "S001 · 86% rain days · $6,673"
 S7B_MIX_2 = "S006 · 14% rain days · $4,714"
 S7B_SPEARMAN = "Spearman 0.36"
-S7B_LINE = "1 of 16 tests at p=.027 is what chance produces."
+S7B_LINE = "1 of 16 tests at p=.021 is what chance produces."
 S7B_NOTES = [
     "Connor, 2:00",
     "- The 14% rain-day revenue lift fails its own sensitivity test: "
     "+13.9% at 1mm, +8.3% at 5mm, +18.9% at 10mm, +9.5% at 0.4mm; stores "
     "agreeing 6/8, 4/8, 4/8, 3/8",
-    "- Store-mix artifact: S001 86% rain days at $6,673 average vs S006 "
-    "14% at $4,714; Spearman 0.36",
-    "- The line: 1 of 16 tests at p=.027 is what chance produces",
+    "- Store-mix artifact: S001 86% rain days at $6,673 median daily "
+    "revenue vs S006 14% at $4,714; Spearman 0.36",
+    "- The line: 1 of 16 tests at p=.021 is what chance produces",
     "- Callback: a number that only holds at one threshold isn't a "
     "finding; same rule the crosswalk runs on",
     "Q7 (anyone) · Why present a result that failed? The sensitivity test "
@@ -322,11 +350,16 @@ S8_NOTES = [
     "the rain, it moves channels') and app.py:565-566 ('the reliable "
     "lever is channel readiness')",
     "- Pilot stores by rain-day frequency (precip >= 1mm, store-day "
-    "grain): S001 86.2% (25/29 days), S002 72.4% (21/29); next is S005 "
-    "at 44.8%",
+    "grain): S001 86.2% (25/29 days), S002 72.4% (21/29)",
     "- 2pp is pre-registered before the pilot runs: below the observed "
     "3.7pp to allow attenuation, above noise; wait time is the guardrail "
     "so a share gain can't hide service degradation",
+    "- S005 boundary case, if probed: three store-days sit at exactly "
+    "1.0mm (S004 07-09, S008 07-20, S005 08-05), the only days the rain "
+    "cutoff's operator can move; S005 reads 12/29 or 13/29 rain days "
+    "under > vs >=, and no S001 or S002 day sits on the line, so the "
+    "pilot picks are identical under either operator",
+    "- Handoff: 'Burhan on the five limitations, each verified'",
     "Cut order 1 (first cut if rehearsal runs past 22:00): fold this "
     "slide into 7b's closing bullet, -1.0",
 ]
@@ -336,8 +369,8 @@ S9_TITLE = ("Five limitations, each verified. The biggest: correctness "
             "lives in Python, not the database")
 # (main text, code_runs) - code_runs mark spans set in IBM Plex Mono
 S9_ITEMS = [
-    "SQLite-in-repo: a binary DB in git isn't mergeable and isn't a "
-    "guaranteed single source of truth",
+    "SQLite-in-repo: a binary DB in git isn't mergeable; we hit that "
+    "conflict ourselves prepping this deck",
     "Weather lag: the archive trails by a few days, so the newest "
     "store-days can carry NULL weather until backfill",
     "Schema constraints: declared PKs/FKs don't exist in the live DB, "
@@ -355,6 +388,12 @@ S9_NOTES = [
     "- Biggest: correctness lives in Python, not the database; to_sql "
     "replace recreates bare tables",
     "- SQLite-in-repo and weather lag: known, stated on slides 2 and 6",
+    "- Hit it Friday: two of us rebuilt the DB and git refused the merge; "
+    "restore-and-rerun was the workaround. Limitation 1 in practice.",
+    "- Decommission, if ops hygiene comes up: two repos carry a capture "
+    "cron; the predecessor's is still firing and failing daily since the "
+    "08-03 migration, and both are on the post-course shutdown list "
+    "(README, After the course)",
     "- Advisory flag: 14 of 18 flow unblocked (WHERE new_product_id IS "
     "NOT NULL); 4 unresolved degrade via legacy-key retention",
     "- Checks are enumerated, not anomaly-based: 08-05's discovery-by-grep "
@@ -424,11 +463,11 @@ A2_NOTES = [
 A3_TITLE = "Appendix · poison-fixture gate"
 # filled from deck/out/fixture/poison_fixture_meta.json at build time
 A3_GATE_LINE = "Gate fired: nonnumeric(unit_price=5) · parser recovered 5/5"
-A3_CAPTION = ("Executed {date} against pipeline code at commit {commit}: "
-              "synthetic $-priced file (orders_2026-08-08.csv, 5 rows) run "
-              "through the real quality gate (helpers/dq.py) and parser "
-              "(src/transform.py). Artifacts: deck/out/fixture/"
-              "poison_fixture_log.txt · rerun: python deck/poison_fixture.py")
+A3_CAPTION = ("executed {date} from repo main at {commit} · synthetic "
+              "$-priced file (orders_2026-08-08.csv, 5 rows) through the "
+              "real quality gate (helpers/dq.py) and parser "
+              "(src/transform.py) · artifacts committed · rerun: python "
+              "deck/poison_fixture.py")
 A3_NOTES = [
     "Appendix · executed poison-fixture test (not presented)",
     "- Synthetic $-priced file: the gate flags nonnumeric(unit_price=5) "
@@ -438,4 +477,7 @@ A3_NOTES = [
     "opening claim that 08-05 cannot recur silently",
     "- Rerun: python deck/poison_fixture.py (fixture in OS temp; touches "
     "nothing in data/ or rocky_top.db)",
+    "- schema_new_product_col in the log is the 07-28 new-ID schema "
+    "detector (dq.py:78-79 via io.detect_product_column) recognizing the "
+    "fixture's new-style product column; expected, not an error",
 ]
