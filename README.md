@@ -74,8 +74,13 @@ Run outside the pipeline:
 | `src/extract_reference.py` | Pull reference tables from UT MySQL. Manual, needs VPN. |
 | `src/verify_tables.py` | Assert all 10 required tables exist. Exits nonzero if any are missing. |
 
-`src/weather.py` requires network access, so run it locally. GitHub Actions uses
-the committed cache.
+`src/weather.py` requires network access. A clean clone reproduces offline from
+the committed cache, but only while the order-date range still matches: cache
+files are named `{store_id}_{start}_{end}.json`, and `_purge_stale_cache`
+(`src/weather.py:35-42`) deletes a store's older-range files before reading. So
+in GitHub Actions, where each daily capture extends the range, the committed
+cache is deleted and all 8 stores are re-fetched from Open-Meteo, then committed
+back by the build step.
 
 ## Documentation
 
