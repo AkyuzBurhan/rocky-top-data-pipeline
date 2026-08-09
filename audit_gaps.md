@@ -1,5 +1,8 @@
 # audit_gaps.md — Internal Submission Triage (not for polish)
 
+> **Snapshot as of 2026-08-07. Superseded by the repo state at HEAD; see
+> docs/DECISIONS.md for current state.**
+
 Audited 2026-08-07 against the submission checklist and rubric. Submission due
 2026-08-09 23:59; live presentation 2026-08-10. Every status cites repo
 evidence; nothing here is a fix — findings only.
@@ -10,13 +13,13 @@ evidence; nothing here is a fix — findings only.
 
 | # | Checklist item | Status | Evidence / what's missing |
 |---|----------------|--------|---------------------------|
-| 1 | Repeatable ingestion + raw preservation | **SATISFIED** | `src/capture.py`, idempotent `src/load_raw.py`; 31 preserved files in `data/raw/`; daily GH Action commits (`4d410a0`, `93800ac`) |
-| 2 | Cleaned data + SQL loading | **SATISFIED** (with caveat) | `sql/01_schema.sql`, `src/transform.py`; `clean_orders` = 3,721 rows in `rocky_top.db`. Caveat: 2026-08-05 `unit_price` all NULL from `$` strings (see DECISIONS.md §6.1) |
+| 1 | Repeatable ingestion + raw preservation | **SATISFIED** | `src/capture.py`, idempotent `src/load_raw.py`; 32 preserved files in `data/raw/`; daily GH Action commits (`4d410a0`, `93800ac`) |
+| 2 | Cleaned data + SQL loading | **SATISFIED** (with caveat) | `sql/01_schema.sql`, `src/transform.py`; `clean_orders` = 3,883 rows in `rocky_top.db`. Caveat as of this snapshot: 2026-08-05 `unit_price` all NULL from `$` strings (see DECISIONS.md §6.1); since fixed |
 | 3 | SQL access + runnable Python demo proving required tables exist | **SATISFIED** | `src/verify_tables.py` committed in `43bc6d8`; passes with exit 0 (both path and `-m` forms by design) |
 | 4 | Ingestion log + monitoring/failure-handling docs | **SATISFIED** | Logs exist (`data/ingestion_log.csv`, `data/data_quality_log.csv`, growing daily via cron). Incident/failure-handling narrative committed in `docs/DECISIONS.md` §3 (`43bc6d8`); "Why" sections filled or removed on `connor/pre-submission-fixes` |
-| 5 | Weather API data stored/cached | **SATISFIED** | 8 JSON files in `data/weather_cache/` (one per store, 2026-07-07..2026-08-07); `weather_daily` = 256 rows; `src/weather.py` uses the cache |
+| 5 | Weather API data stored/cached | **SATISFIED** | 8 JSON files in `data/weather_cache/` (one per store, 2026-07-07..2026-08-08); `weather_daily` = 264 rows; `src/weather.py` uses the cache when the date range still matches |
 | 6 | Product crosswalk + documented ER decisions | **SATISFIED** | Crosswalk itself is strong: `product_crosswalk` table + `data/reference/product_crosswalk.csv` (80 rows, 72/4/4). `docs/DECISIONS.md` was committed at the exact path `src/crosswalk.py` line 5 references (`43bc6d8`); §4 ER "Why we decided this" rationale written on `connor/pre-submission-fixes` |
-| 7 | Analytics-ready daily sales table | **SATISFIED** (with caveat) | `daily_sales` = 1,367 rows, grain-unique, revenue reconciles, weather joined 1,367/1,367. Caveat: 2026-08-05 `net_revenue = 0.0` (the `$`-price day) |
+| 7 | Analytics-ready daily sales table | **SATISFIED** (with caveat) | `daily_sales` = 1,414 rows, grain-unique, revenue reconciles, weather joined 1,414/1,414. Caveat as of this snapshot: 2026-08-05 `net_revenue = 0.0` (the `$`-price day); since fixed, that day now reconciles at $56,970.09 |
 | 8 | Business-facing report with visuals + recommendations | **RESOLVED** | `dashboard/app.py` (Streamlit board: KPI tiles, revenue by store and category, weather-sensitivity views, inventory/promotion playbook) added in commit `2f4aef6` |
 | 9 | Documentation of design decisions, limitations, gaps, known data issues | **SATISFIED** | `docs/PROJECT_GUIDE.md` §4 lists data quirks; DECISIONS.md committed with incidents + limitations (`43bc6d8`), "Why" sections filled or removed on `connor/pre-submission-fixes`. README rewritten with current status and the `-m` run commands (`8b0d36e`) |
 | 10 | AI-use disclosure | **RESOLVED** | "AI-Use Disclosure" section written in `docs/DECISIONS.md`, added in commit `6fb4393` |
@@ -56,15 +59,17 @@ Tested by cloning this repo to a temp directory and running the commands.
 
 ### Things a grader cloning fresh could trip over
 
-1. **Path-form command fails** (above). README has no run instructions at all;
-   only `docs/PROJECT_GUIDE.md` shows the correct `-m` form.
-2. **Stale README** — a grader reading `README.md` first is told the repo is
-   at "Step 0" with everything "[coming next]".
-3. **`credentials.json` looks required but isn't** — README setup says
-   `cp credentials.example.json credentials.json # then fill in real values`,
-   but the SQLite pipeline never reads it (`helpers/db.py` only loads it for
-   the MySQL engines, i.e. `src/extract_reference.py`). A grader may think
-   they need UTK credentials to run anything.
+1. **Path-form command fails** (above). [FIXED since this snapshot: `README.md`
+   now leads with a Quick start showing the `-m` forms and states outright that
+   the path form fails.]
+2. ~~**Stale README** — a grader reading `README.md` first is told the repo is
+   at "Step 0" with everything "[coming next]".~~ [FIXED since this snapshot:
+   README was rewritten in `8b0d36e` and no longer says this.]
+3. **`credentials.json` looks required but isn't.** The SQLite pipeline never
+   reads it (`helpers/db.py` only loads it for the MySQL engines, i.e.
+   `src/extract_reference.py`). [FIXED since this snapshot: README now has a
+   Credentials section saying it is needed only for `src/extract_reference.py`
+   on the UT VPN, and that nothing in Quick start needs it.]
 4. **`src/crosswalk.py` references `docs/DECISIONS.md`** (line 5 and the
    `_validate` console message) — that path does not exist; the new file is
    at the repo root.
@@ -82,8 +87,8 @@ Tested by cloning this repo to a temp directory and running the commands.
 
 | P | Gap | Rubric line at risk | Est. effort |
 |---|-----|--------------------|-------------|
-| **P0** | **No business report/visuals/recommendations** (checklist #8). Nothing exists to grade for "Business analysis/report artifact". Build a report (notebook or HTML) off `daily_sales`: weather-sensitivity by store/category + 2–3 recommendations. Must also address the 2026-08-05 zero-revenue day or exclude/flag it. | Business analysis **5 pts**, plus Overall impression (6) | 3–5 h |
-| **P0** | **AI-use disclosure missing** (checklist #10, explicitly required). Write it under the heading already in DECISIONS.md. | Documentation **5 pts** bucket; explicit checklist item | 15–30 min |
+| ~~P0~~ | **CLOSED: business report exists.** `dashboard/app.py` (Streamlit: KPI tiles, revenue by store and category, weather-sensitivity views, inventory/promotion playbook) added in `2f4aef6`; it carries a dynamic zero-revenue banner, and the 2026-08-05 day itself now reconciles at $56,970.09. | Business analysis **5 pts**, plus Overall impression (6) | done |
+| ~~P0~~ | **CLOSED: AI-use disclosure written.** "AI-Use Disclosure" section in `docs/DECISIONS.md`, added in `6fb4393`. | Documentation **5 pts** bucket; explicit checklist item | done |
 | **P0** | **DECISIONS.md "Why we decided this" sections are blank + all three audit files uncommitted.** Instructor grades on stated limitations matching reality — the facts are in place; the team must add the why's and commit DECISIONS.md + `src/verify_tables.py` (+ this file if desired). | Documentation 5, Product ER 8, Monitoring 8 | 1–2 h |
 | **P1** | **2026-08-05 `$`-price day: decide and state the position.** Currently revenue for that day is silently 0.0 in `daily_sales` and *no doc mentioned it before this audit*. Options: (a) document as a known issue in DECISIONS.md/report (already drafted; aligns with the instructor's "honest limitations" philosophy), or (b) also fix parsing + add a non-numeric DQ check. Unstated, it's a live-demo landmine: any grader summing August revenue sees a zero day. | Monitoring 8, Business analysis 5 | doc-only: done, review 15 min; code fix: 1–2 h |
 | **P1** | **Stale README** — rewrite status, layout, and add the correct run commands (`-m` forms) + `verify_tables.py` mention; note `credentials.json` is only needed for VPN reference extraction. | Documentation 5, Overall impression 6 | 30–45 min |
