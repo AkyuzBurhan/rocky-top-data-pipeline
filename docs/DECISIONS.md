@@ -376,6 +376,52 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    `header_mislabeled_product` flag (`helpers/dq.py`) and the
    `product_id_source` logic exist in code, but no committed raw file
    exercises them (no DQ row has `has_source_flag=1`).
+8. **Weather raw is not preserved.**
+
+   Raw-first preservation is a property of the orders feed, not of the pipeline.
+   The weather source is the exception, and we should not claim otherwise.
+
+   `_purge_stale_cache()` (`src/weather.py:35-42`) unlinks every prior cache file
+   for a store whenever the date range changes. Because the cache key *is* the
+   date range (`{store_id}_{start}_{end}.json`), and the range is derived from
+   the order dates in `clean_orders`, every new order date changes the key. Each
+   run therefore deletes the previous pull and refetches the full history. Unlike
+   `data/raw/`, where each day's file is kept forever, the weather cache holds
+   exactly one snapshot per store: the most recent one. Prior responses are gone,
+   not archived.
+
+   The deletions are visible in git. Commit `b191765` ("Daily build: 2026-08-08")
+   removed all eight `data/weather_cache/*_2026-07-07_2026-08-07.json` files and
+   added the `*_2026-08-08.json` replacements; `93800ac` did the same from
+   `08-05` to `08-07`. Both are bot commits from the daily Action.
+
+   This matters because Open-Meteo revises its archive. Comparing the cache at
+   the locked snapshot `82d221e` against the current files, over the 256
+   store-days the two have in common:
+
+   - 5 store-days had `precipitation_sum` revised.
+   - 2 of those crossed the deck's rain threshold (store-day grain, strictly
+     `> 1.0mm`) and flipped classification:
+     2026-08-07 S007, 2.3mm to 0.9mm, rain to dry; and
+     2026-08-07 S008, 0.4mm to 3.7mm, dry to rain.
+
+   All five revisions fall on 2026-08-07, the newest date at lock time, which is
+   the behaviour you would expect from a preliminary ERA5 value being settled
+   later. The consequence is that a rain-day figure computed today will not
+   always match one computed from the same code last week, and we cannot
+   reconstruct the earlier answer, because the inputs that produced it were
+   deleted rather than kept.
+
+   `analysis/rain_analysis.py:5-8` already records the symptom, noting that
+   S007's rain-day share moved from 41.4% (12/29) at lock to 37.9% (11/29) on
+   live data. It attributes this to Open-Meteo revising history, which is the
+   upstream cause. The local cause is this limitation: the pipeline discards its
+   own prior pull, so a revision upstream becomes unrecoverable here. The deck is
+   reproducible only because it is pinned to the `82d221e` database snapshot, not
+   because the weather inputs were preserved.
+
+   Not fixed, documented. The fix is to make the cache key date-independent, or
+   to keep dated pulls the way `data/raw/` keeps dated order files.
 
 ## AI-Use Disclosure
 
