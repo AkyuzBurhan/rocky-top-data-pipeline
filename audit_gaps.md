@@ -17,9 +17,9 @@ evidence; nothing here is a fix — findings only.
 | 5 | Weather API data stored/cached | **SATISFIED** | 8 JSON files in `data/weather_cache/` (one per store, 2026-07-07..2026-08-07); `weather_daily` = 256 rows; `src/weather.py` uses the cache |
 | 6 | Product crosswalk + documented ER decisions | **PARTIAL** | Crosswalk itself is strong: `product_crosswalk` table + `data/reference/product_crosswalk.csv` (80 rows, 72/4/4). ER *decisions doc*: `src/crosswalk.py` line 5 references `docs/DECISIONS.md`, which does not exist; DECISIONS.md now at repo **root** (path mismatch with the code comment) and its "Why" sections are blank |
 | 7 | Analytics-ready daily sales table | **SATISFIED** (with caveat) | `daily_sales` = 1,367 rows, grain-unique, revenue reconciles, weather joined 1,367/1,367. Caveat: 2026-08-05 `net_revenue = 0.0` (the `$`-price day) |
-| 8 | Business-facing report with visuals + recommendations | **MISSING** | No report, notebook, dashboard, or image anywhere in the repo; `docs/PROJECT_GUIDE.md` §6 lists "The business dashboard" as still to add |
+| 8 | Business-facing report with visuals + recommendations | **RESOLVED** | `dashboard/app.py` (Streamlit board: KPI tiles, revenue by store and category, weather-sensitivity views, inventory/promotion playbook) added in commit `2f4aef6` |
 | 9 | Documentation of design decisions, limitations, gaps, known data issues | **PARTIAL** | `docs/PROJECT_GUIDE.md` §4 lists data quirks; DECISIONS.md (uncommitted) adds incidents + 7 limitations; team must write the "Why we decided this" sections. `README.md` is stale: says "Step 0 done", `helpers/ src/ sql/` marked "[coming next]" though fully built |
-| 10 | AI-use disclosure | **MISSING** | No disclosure text anywhere in the repo; DECISIONS.md has the empty heading only |
+| 10 | AI-use disclosure | **RESOLVED** | "AI-Use Disclosure" section written in `docs/DECISIONS.md`, added in commit `6fb4393` |
 
 ## 2. Reproducibility from a clean clone (actually tested 2026-08-07)
 
