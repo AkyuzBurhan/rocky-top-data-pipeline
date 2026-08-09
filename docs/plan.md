@@ -33,7 +33,7 @@ Content total: 21.0 minutes.
 - Two thresholds, two jobs. Composite (0.6·name + 0.2·subclass + 0.2·price) ≥ 0.60 decides accept vs reject. name_sim ≥ 0.85 decides high vs medium confidence.
 - Review queue = everything not high (14 medium + 4 low = 18).
 - Three-threshold motif available in the talk track: MIN_SCORE, STRONG_NAME, and the rain cut that killed the revenue claim; one sentence on 7b, don't belabor.
-- P1076 exhibit (talk track): the weakest accept cleared the floor by 0.068 and got flagged; thin acceptance plus automatic review is the whole design in one product.
+- P1076 exhibit (talk track): a 0.50 name similarity still cleared the floor because subclass and price carried the composite to 0.668, 0.068 above the cut, and the match was auto-flagged for review; thin acceptance plus automatic review is the whole design in one product.
 
 ## Opening script (slide 1 speaker notes, verbatim as a script)
 
@@ -48,7 +48,7 @@ Everyone preps all seven; James first in rehearsal. Deck mapping: Q1 → slide 4
 | # | Question | Target | Answer core |
 |---|---|---|---|
 | 1 | Walk me through 08-05 | Not Jack | Present ≠ parseable · silent coercion · symmetric nulls. Found by grep in audit; no check fired. Double-derived to the cent; parser fixed; non-numeric gate added; fix verified against raw. |
-| 2 | "P1076 matched at 0.50 name similarity against a 0.60 floor. Explain" | Not Burhan | "The floor applies to the composite, not the name. P1076's name scored 0.50, but subclass matched exactly and price closeness was 0.841, putting the composite at 0.668. Its block had one candidate. And because name similarity was under the 0.85 confidence threshold, it came out medium and landed in the review queue: the system flagged its own weakest accept." |
+| 2 | "P1076 matched at 0.50 name similarity against a 0.60 floor. Explain" | Not Burhan | "The floor applies to the composite, not the name. P1076's name scored 0.50, but subclass matched exactly and price closeness was 0.841, putting the composite at 0.668. Its block had one candidate. And because name similarity was under the 0.85 confidence threshold, it came out medium and landed in the review queue: the system flagged its own thin accept." |
 | 3 | "72 matched but 18 need review; which is it?" | Anyone | Orthogonal axes: status = decision made, confidence = name-evidence strength. 10 of the 72 are medium: committed downstream, queued for audit. |
 | 4 | Schema declares PKs/FKs; enforced? | Anyone | No: to_sql(if_exists="replace") recreates bare tables; verified in sqlite_master. Guarantees live in Python; known debt; alternative was DDL-then-append. |
 | 5 | "If nothing reads the flag, what's it for?" | Not Burhan | Audit deliverable. Flag-and-proceed vs block-and-lose-revenue, with stated cost. Twin-swap risk bounded to the 4 possible_match (P1077-P1080); the 10 matched-medium carry a smaller, different risk (false positive in a single-candidate block), not zero. |

@@ -480,7 +480,7 @@ with tab_weather:
             f'<div style="font-size:12.5px;color:{MUTED};margin-bottom:8px;">Order channel mix on '
             f'dry vs rainy store-days (rain ≥ {RAIN_MM:g}mm; {n_rain} rain vs {n_dry} dry store-days '
             'in this selection). Unlike the revenue correlation below, the direction of this shift '
-            'holds at every rain cutoff tested (0.5–10&nbsp;mm); significance does not survive past '
+            'holds at every rain cutoff tested (0.4–10&nbsp;mm); significance does not survive past '
             '5mm (p = .10 at 5mm, p = .46 at 10mm).</div>', unsafe_allow_html=True)
         if sd_rain.nunique() == 2 and pc["sales_channel"].notna().any():
             sh = (pc.groupby("rain")["sales_channel"].value_counts(normalize=True).unstack() * 100)
