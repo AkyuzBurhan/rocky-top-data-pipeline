@@ -74,6 +74,17 @@ single command — see below.
 
 ```bash
 uv sync                                         # install dependencies into .venv
+```
+
+That is everything the SQLite pipeline needs — no credentials and no network, because
+the reference CSVs and the Open-Meteo cache are committed.
+
+`credentials.json` is needed **only** for the UTK MySQL path: `src/extract_reference.py`
+(pull reference tables from the instructor DB) and writes to the team DB, both of which
+require campus/VPN. `helpers/db.py` reads the file only when it builds those MySQL
+engines, never for SQLite. If you need that path:
+
+```bash
 cp credentials.example.json credentials.json    # then edit it (see below)
 ```
 
@@ -425,8 +436,14 @@ docs/      this guide + decision/quality notes
   the date range grows, so `data/weather_cache/` doesn't accumulate old files).
 - **How to run:** `uv run python -m src.weather` (needs network).
 - **How to see the result:** console prints
-  `weather_daily rebuilt: N rows (8 stores x ~28 dates ...)`; one cached JSON per
-  store appears in `data/weather_cache/`; inspect the `weather_daily` table.
+  `weather_daily rebuilt: 264 rows (8 stores x 30 dates, 2026-07-07..2026-08-08)`.
+  The two numbers do not multiply out, and that is expected: the message reports the
+  count of distinct **order** dates (30, from `clean_orders`), while the table holds
+  one row per store per **calendar** date across the requested range —
+  2026-07-07..2026-08-08 is 33 days, and 8 x 33 = 264. The three extra days are the
+  ones with no surviving orders: 2026-07-24 (stale copy, deduped out), 2026-08-03
+  (empty file), 2026-08-06 (source 404). One cached JSON per store appears in
+  `data/weather_cache/`; inspect the `weather_daily` table.
 
 ---
 
@@ -499,13 +516,16 @@ docs/      this guide + decision/quality notes
   capture + commit, then rebuild + commit db/logs, so monitoring logs get a real
   timestamp every day.
 - Weather cache cleanup (one file per store).
+- `src/verify_tables.py` — a runnable "the SQL tables exist" demo. Exits 0 with a
+  row count per table; works from both `uv run python -m src.verify_tables` and the
+  path form.
+- The business dashboard (`dashboard/app.py`, Streamlit):
+  `uv run streamlit run dashboard/app.py`.
 
 ## 6. Still to add (later steps)
 
 - `publish_to_utk.py` — push final tables to the team DB (on VPN).
-- `verify_tables.py` — a runnable "the SQL tables exist" demo.
 - `manual_overrides.csv` support in the crosswalk (make human review decisions
   permanent) — optional.
-- The business dashboard.
 
-When those land, this guide will be updated.
+When those two land, this guide will be updated.

@@ -24,7 +24,7 @@ presentation **Mon 2026-08-10**.
 - `src/verify_tables.py` (new, **uncommitted**) proves all 10 required tables
   exist; passes both invocation forms.
 - [DECISIONS.md](../DECISIONS.md) (new, **uncommitted**) has facts for all
-  seven incidents + 8 limitations; its "Why we decided this" sections are
+  seven incidents + 7 limitations; its "Why we decided this" sections are
   **blank on purpose** — the team writes those by hand.
 
 **Outstanding (see [audit_gaps.md](../audit_gaps.md) §3 for the full table):**
@@ -39,7 +39,7 @@ presentation **Mon 2026-08-10**.
   fix) — see §4 below.
 - **P1** — Rewrite the stale `README.md` (still says "Step 0 done", no run
   commands, implies credentials are required).
-- **P2/P3** — empty `ingestion_log` SQLite table, `docs/DECISIONS.md` path
+- **P2/P3** — `docs/DECISIONS.md` path
   mismatch in `src/crosswalk.py`, disable the GitHub Action after 08-10.
 
 ## 2. VERIFIED FACTS
@@ -51,7 +51,7 @@ defended at the presentation. Details in [DECISIONS.md](../DECISIONS.md).
 |------|-------|----------|
 | Raw files preserved | 31 (`orders_2026-07-07` … `08-07`; **no 08-06 file** — 404 day) | `data/raw/` |
 | Ingestion log rows / DQ log rows | 33 / 31 | `data/ingestion_log.csv`, `data/data_quality_log.csv` |
-| Table row counts | raw_orders 3,865; clean_orders 3,721; daily_sales 1,367; weather_daily 256; rejected_rows 144; crosswalk 80; stores 8; products 80; new_products 80; **ingestion_log 0** | `src/verify_tables.py` output, pasted in [DECISIONS.md](../DECISIONS.md) §2 |
+| Table row counts | raw_orders 3,865; clean_orders 3,721; daily_sales 1,367; weather_daily 256; rejected_rows 144; crosswalk 80; stores 8; products 80; new_products 80; **ingestion_log 33** | `src/verify_tables.py` output, pasted in [DECISIONS.md](../DECISIONS.md) §2 |
 | rejected_rows = 144 | 140 stale-copy rows (07-24 file = byte-identical 07-23 file, same SHA-256) + 4 dup rows from 07-16 | `data/ingestion_log.csv` (hash `ebea0940…` twice), `rocky_top.db` rejected_rows |
 | Crosswalk methods | 51 exact_name / 25 attributes_fuzzy / 4 none | `data/reference/product_crosswalk.csv` |
 | Crosswalk statuses | 72 matched / 4 possible_match / 4 unresolved; 18 rows needs_review=1 | same |
@@ -75,8 +75,8 @@ Things we believed (or our own docs claim) that turned out wrong:
    data-loss bug: DQ passed the file clean and `daily_sales` reports $0.00
    revenue for 2026-08-05. Nothing in the repo mentioned it before this audit.
 3. **`docs/PROJECT_GUIDE.md` lists `ingestion_log` among the SQLite tables.**
-   The table exists but has **0 rows**; the log is CSV-only
-   (`helpers/logs.py` never writes to the DB).
+   Correct as listed: `data/ingestion_log.csv` is the source of truth and is
+   mirrored into the `ingestion_log` table on every `load_raw` run.
 4. **README implies `credentials.json` is needed to run the project.** It is
    only read by the MySQL engines (`helpers/db.py`), i.e. by
    `src/extract_reference.py` on VPN. The whole SQLite pipeline runs without it
@@ -101,7 +101,7 @@ Things we believed (or our own docs claim) that turned out wrong:
 | 2 | Report format: notebook, HTML, or slides-with-charts? What tool? | Report owner (TBD Sat morning) |
 | 3 | Who writes which "Why we decided this" sections in [DECISIONS.md](../DECISIONS.md)? (7 blanks: 3 ingestion/monitoring incidents, $-prices, migration, ER method, SQLite trade-off) | Suggest: whoever wrote each piece of code writes its Why — Connor + Burhan to split; confirm with other two teammates |
 | 4 | AI-use disclosure: one combined statement or per-member? What does the course policy require it to contain? | All four members — needs input from everyone; [UNVERIFIED: course policy text is not in the repo] |
-| 5 | Empty `ingestion_log` table: load the CSV into SQLite (30 min) or correct the docs? | TBD |
+| 5 | ~~Empty `ingestion_log` table: load the CSV into SQLite or correct the docs?~~ Settled: the CSV is the source of truth and is mirrored into the `ingestion_log` table on every `load_raw` run. | Closed |
 | 6 | Should `audit_gaps.md` be committed (internal triage in a graded repo) or kept local? | Team decision before submission |
 | 7 | Presentation demo: live `uv run python -m src.run_pipeline` + `verify_tables.py`, or pre-recorded/screenshots? (Live run is fast and worked from a clean clone — but source may 404 again, so don't demo `--capture`.) | Presenter (TBD) |
 | 8 | Disable the GitHub Action after 08-10 (daily cron + `contents: write` will 404-and-commit forever). Who owns the repo settings? | Repo owner |

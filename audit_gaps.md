@@ -18,7 +18,7 @@ evidence; nothing here is a fix — findings only.
 | 6 | Product crosswalk + documented ER decisions | **PARTIAL** | Crosswalk itself is strong: `product_crosswalk` table + `data/reference/product_crosswalk.csv` (80 rows, 72/4/4). ER *decisions doc*: `src/crosswalk.py` line 5 references `docs/DECISIONS.md`, which does not exist; DECISIONS.md now at repo **root** (path mismatch with the code comment) and its "Why" sections are blank |
 | 7 | Analytics-ready daily sales table | **SATISFIED** (with caveat) | `daily_sales` = 1,367 rows, grain-unique, revenue reconciles, weather joined 1,367/1,367. Caveat: 2026-08-05 `net_revenue = 0.0` (the `$`-price day) |
 | 8 | Business-facing report with visuals + recommendations | **MISSING** | No report, notebook, dashboard, or image anywhere in the repo; `docs/PROJECT_GUIDE.md` §6 lists "The business dashboard" as still to add |
-| 9 | Documentation of design decisions, limitations, gaps, known data issues | **PARTIAL** | `docs/PROJECT_GUIDE.md` §4 lists data quirks; DECISIONS.md (uncommitted) adds incidents + 8 limitations; team must write the "Why we decided this" sections. `README.md` is stale: says "Step 0 done", `helpers/ src/ sql/` marked "[coming next]" though fully built |
+| 9 | Documentation of design decisions, limitations, gaps, known data issues | **PARTIAL** | `docs/PROJECT_GUIDE.md` §4 lists data quirks; DECISIONS.md (uncommitted) adds incidents + 7 limitations; team must write the "Why we decided this" sections. `README.md` is stale: says "Step 0 done", `helpers/ src/ sql/` marked "[coming next]" though fully built |
 | 10 | AI-use disclosure | **MISSING** | No disclosure text anywhere in the repo; DECISIONS.md has the empty heading only |
 
 ## 2. Reproducibility from a clean clone (actually tested 2026-08-07)
@@ -68,10 +68,11 @@ Tested by cloning this repo to a temp directory and running the commands.
 4. **`src/crosswalk.py` references `docs/DECISIONS.md`** (line 5 and the
    `_validate` console message) — that path does not exist; the new file is
    at the repo root.
-5. **`ingestion_log` table in SQLite is empty (0 rows)** — a grader checking
-   "ingestion log in SQL" finds an empty table; the real log is
-   `data/ingestion_log.csv`. `docs/PROJECT_GUIDE.md` §1 lists `ingestion_log`
-   among the DB tables without noting it is unpopulated.
+5. **`ingestion_log` in SQL** — a grader checking "ingestion log in SQL" finds a
+   populated table: `data/ingestion_log.csv` is the source of truth and is
+   mirrored into the `ingestion_log` table on every `load_raw` run.
+   `docs/PROJECT_GUIDE.md` §1 lists `ingestion_log` among the DB tables, which
+   is accurate.
 6. Minor: two comments in `.github/workflows/daily_capture.yml` are in
    Turkish (lines 25, 37) — harmless, but visible to a grader.
 7. No absolute paths anywhere (`helpers/config.py` resolves everything from
@@ -87,7 +88,7 @@ Tested by cloning this repo to a temp directory and running the commands.
 | **P1** | **2026-08-05 `$`-price day: decide and state the position.** Currently revenue for that day is silently 0.0 in `daily_sales` and *no doc mentioned it before this audit*. Options: (a) document as a known issue in DECISIONS.md/report (already drafted; aligns with the instructor's "honest limitations" philosophy), or (b) also fix parsing + add a non-numeric DQ check. Unstated, it's a live-demo landmine: any grader summing August revenue sees a zero day. | Monitoring 8, Business analysis 5 | doc-only: done, review 15 min; code fix: 1–2 h |
 | **P1** | **Stale README** — rewrite status, layout, and add the correct run commands (`-m` forms) + `verify_tables.py` mention; note `credentials.json` is only needed for VPN reference extraction. | Documentation 5, Overall impression 6 | 30–45 min |
 | **P2** | **Path-form run command fails** — either document "-m only" prominently in README (cheap) or make scripts path-runnable. | Documentation 5 | doc: included above; code: 30 min |
-| **P2** | **`ingestion_log` SQLite table empty** — either load the CSV into the table during `load_raw`/`init_db`, or correct `docs/PROJECT_GUIDE.md` + schema comments to say the log is CSV-only. | SQL modeling 8, Monitoring 8 | 30 min either way |
+| ~~P2~~ | **CLOSED — `ingestion_log` in SQL.** The CSV is the source of truth and is mirrored into the `ingestion_log` table on every `load_raw` run. | SQL modeling 8, Monitoring 8 | done |
 | **P2** | **`docs/DECISIONS.md` path mismatch** in `src/crosswalk.py` comments — update the comment or move/copy the file to `docs/`. | Documentation 5 | 10 min |
 | **P3** | **Disable the GitHub Action after the course** (`.github/workflows/daily_capture.yml`, daily cron + `contents: write`). Not graded, but it will 404-and-commit daily forever. Put it on the team calendar for after 2026-08-10. | — | 5 min (later) |
 | **P3** | Turkish comments in the workflow; `STATUS_MISSING` defined but never emitted (`helpers/config.py`) — cosmetic/consistency notes for the presentation Q&A. | Overall impression 6 | optional |
