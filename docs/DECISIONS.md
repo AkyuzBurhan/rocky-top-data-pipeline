@@ -2,9 +2,7 @@
 
 Rocky Top Outfitters pipeline (BZAN 545 final project). Sections follow the
 grading rubric. Each incident below states **verified facts only** (what
-happened, where the evidence is, how the pipeline responded). The
-"Why we decided this" subsections are intentionally left blank for the team
-to write by hand.
+happened, where the evidence is, how the pipeline responded).
 
 ---
 
@@ -35,8 +33,6 @@ commits are visible in git history (e.g. commits `4d410a0` / `93800ac` for
   link that redirects to the GitHub raw URL, and the direct URL is used so it
   is reachable from GitHub Actions. [UNVERIFIED: the redirect itself cannot be
   confirmed from repo contents alone.]
-
-### Why we decided this
 
 ### Incident: 2026-08-06 source outage (HTTP 404)
 
@@ -77,8 +73,6 @@ The cost is that daily_sales has no row for 08-06 and any comparison spanning th
   `status=success, rows_loaded=125`, and `data/data_quality_log.csv`
   (run_date 2026-08-07) shows zero NA counts and only the expected
   `schema_new_product_col` flag. No Limitations entry needed for this incident.
-
-### Why we decided this
 
 ---
 
@@ -132,8 +126,6 @@ Facts as implemented:
   and goes stale relative to SQLite until a manual publish exists; SQLite is a
   single-file, effectively single-writer database, so there is no multi-user
   concurrent access story.
-
-### Why we decided this
 
 ---
 
@@ -219,8 +211,6 @@ What we cannot do from inside the pipeline is tell an empty file apart from a ge
   "Revenue, 2026-07-07 through 2026-08-07" at the end of this document for
   the corrected totals.
 
-### Why we decided this
-
 ---
 
 ## 4. Product ER & Migration
@@ -244,6 +234,10 @@ What we cannot do from inside the pipeline is tell an empty file apart from a ge
   `new_product_id` header, and no DQ row sets `has_source_flag=1`]).
 
 ### Why we decided this
+
+We scored each old product against candidates on name, subclass, and price, weighted 0.6 / 0.2 / 0.2, and accepted a match at 0.60 or above. Name carries the most weight because it is the field that changed. Launch date, margin, and department came through the migration untouched, so those three are the block key that narrows the candidate set, and name is what actually distinguishes one candidate from another once you are inside a block. Prices moved on plenty of products that are otherwise the same item, so price votes but does not decide.
+
+The 0.60 cut is a judgment call and we want to be clear about that. Matched and rejected scores are not cleanly separated; the recomputed composites overlap between 0.642 and 0.939 (`analysis/rain_analysis_output.md`), so no threshold splits them without trading false matches against missed ones. We set the cut where a reviewer could still work through what fell near it. The second threshold, 0.85 on name alone, does a different job. It does not decide matches. It sorts unambiguous accepted matches into confident and needs-a-look, which produced 10 of the 18 review rows. The ambiguity rule contributes 4 more: when the top two candidates in a block score within 0.05 of each other, the row is accepted as `possible_match` and queued regardless of name score. The other 4 are products with no candidate at all.
 
 ### Entity-resolution method and results (verified against `data/reference/product_crosswalk.csv` and `src/crosswalk.py`)
 
@@ -274,6 +268,10 @@ What we cannot do from inside the pipeline is tell an empty file apart from a ge
   4 unresolved) in `data/reference/product_crosswalk.csv`.
 
 ### Why we decided this
+
+We checked the mapping against brand, which is not in the scoring model or the block key, so it never saw the field it is validating. Brand labels are not identical across systems. Three were relabeled in the migration, so a literal string comparison fails on 28 of 76 pairs. What holds is the mapping: 8 legacy brands map to 8 new labels, one to one, with no product crossing brands. A scoring model that had used brand would just be agreeing with itself here.
+
+Ambiguity we handled by keeping it visible rather than resolving it. 72 products matched outright, 4 more mapped to a new ID but stayed marked `possible_match`, and 4 old products came out `unresolved` with no candidate sharing launch date, margin, and department. All four planted "Alt" decoys landed in `possible_match`, which is the behavior we wanted. They score high enough to be worth a look and not high enough to accept quietly. Four new-system IDs went unassigned, and those are the losing halves of the decoy pairs rather than new products. Orders against unresolved products keep their revenue through a `legacy_recovered` path, so an unmatched product costs us a product-level breakout and not a line in the revenue total.
 
 ---
 
@@ -312,13 +310,13 @@ Three decisions sit behind this section: the window, what we claim about revenue
 
 The window is frozen at 2026-07-07 through 2026-08-07. The pipeline runs on a daily cron, so the database grows every morning. An open window would mean every figure in the deck was stale by the time we presented and anyone rerunning our code would get different numbers than the slides. Freezing costs the most recent days and buys reproducibility. The live dashboard reads the full table and is ahead of the deck by design.
 
-We do not claim rain increases revenue. At a 1mm threshold, mean store-day net revenue ran 10% higher on rainy days, with 6 of 8 stores agreeing. At 10mm the gap widened to 18% but agreement collapsed to 1 of 8, so the larger number rests on a single store. The point estimate moved with the cutoff and the cross-store consistency fell apart with it. We dropped the claim rather than report the threshold that flattered it. dashboard/app.py:516-525 computes both thresholds and renders the warning, so the fragility is visible on the board instead of buried here.
+We do not claim rain increases revenue. At a 1mm threshold, mean store-day net revenue ran 10% higher on rainy days, with 6 of 8 stores agreeing. At 10mm the mean gap widened to 18% (the deck's 18.9% is the same comparison on medians), but agreement, counted on per-store median lifts as on slide 7b, fell to 4 of 8 stores, a coin flip. The point estimate moved with the cutoff and the cross-store consistency fell apart with it. We dropped the claim rather than report the threshold that flattered it. dashboard/app.py:516-525 computes both thresholds and renders the warning, so the fragility is visible on the board instead of buried here.
 
-We do claim rain shifts channel mix. Across 3,721 order lines, 1,629 on rainy store-days and 2,092 on dry, pickup share rises from 17.9% to 21.5%, a shift of 3.6 points (z ≈ 2.8, p ≈ .006). In-store falls 2.8 points, ship-from-store 0.8. This holds at every cutoff from 0.5 to 10mm. Customers change how they buy, not whether they buy.
+We do claim rain shifts channel mix. Figures are computed on the analysis window frozen at commit `82d221e`, with rain defined as `precipitation_sum > 1.0mm` at store-day grain, matching the deck. Across 3,721 order lines, 1,568 on rainy store-days and 2,153 on dry, pickup share rises from 17.9% to 21.6%, a shift of +3.7 points (z ≈ 2.8, p ≈ .006). In-store falls 3.1 points, ship-from-store 0.5. The derivation is committed at `analysis/rain_analysis_output.md`. The direction holds at every cutoff tested from 0.4 to 10mm; significance does not survive past 5mm (p = .10 at 5mm, p = .46 at 10mm), as the rainy line count thins. Customers change how they buy, not whether they buy.
 
 Sample size is the limit worth stating. 1,367 daily_sales rows look like a lot, but weather varies by store and date, not by category, so 232 independent store-day observations sit behind every weather result here. Eight stores, 29 dates. One unusual week is a meaningful fraction of that.
 
-One reconciliation note. The dashboard reports $1,373.7K because it filters to the six named categories. Three rows carrying $930.45 sit under UNKNOWN, all tracing to product key NP9999, which appears in four order lines in orders_2026-07-30.csv and in no other file. NP9999 is in neither products nor new_products, so it has no crosswalk row. This is a referential integrity gap, not an entity-resolution failure: the four unresolved products in §4 are in the crosswalk with match_status = 'unresolved'. The pipeline kept the revenue and labelled the category UNKNOWN rather than dropping the rows. Nothing flagged it at ingestion; we found it by tracing the difference between the dashboard total and the reconciliation figure.
+One reconciliation note. The dashboard reports $1,373.7K because it filters to the six named categories. Three rows carrying $930.45 sit under UNKNOWN, all tracing to product key NP9999, which appears in four order lines in orders_2026-07-30.csv and in no other file. NP9999 is in neither products nor new_products, so it has no crosswalk row. This is a referential integrity gap, not an entity-resolution failure: the four unresolved products in §4 are in the crosswalk with match_status = 'unresolved'. The pipeline kept the revenue and labelled the category UNKNOWN rather than dropping the rows. The ingestion check fired: the `data_quality_log.csv` row for `orders_2026-07-30.csv` (run 2026-08-04) records `orphan_product=4` and carries the `orphans` flag, and those four lines are exactly the NP9999 lines. Nobody acted on the flag. We rediscovered the gap by tracing the difference between the dashboard total and the reconciliation figure. The detection worked; the follow-through did not, and that is the part of the monitoring loop we would fix first.
 
 ---
 
