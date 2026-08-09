@@ -118,4 +118,9 @@ otherwise keep committing to this repo indefinitely.
 
 The predecessor repo (`jdyess-cell/BZAN-545-Final-Project`) has its own
 `Collect Daily Orders` cron that was never disabled at the 08-03 consolidation;
-it has been firing and failing daily since. Disable that workflow too.
+it has been firing and failing daily since. Disable that workflow too. Two
+additional private backup repositories the team ran in parallel as insurance
+against a single-collector failure (they recovered 2026-07-21 and 2026-07-22
+when the main cron missed those days; see `docs/DECISIONS.md` §1) also carry
+their own daily capture crons — disable those two workflows as well. Four
+workflows total on the shutdown list.
