@@ -55,6 +55,14 @@ commits are visible in git history (e.g. commits `4d410a0` / `93800ac` for
 
 ### Why we decided this
 
+The source returned 404. We log the run as failed with rows_loaded=0 and move on.
+
+Retrying was the obvious alternative and we rejected it. A 404 means the file is not there. Retrying produces three identical failures and a longer log. Timeouts and connection resets look different in the response and would be worth handling on their own terms, but we have not seen one.
+
+Backfilling from 08-05 was the tempting option and the worse one. It would have kept the revenue series unbroken, which is exactly the problem. Every downstream number would still reconcile, the dashboard would look healthy, and nobody would know 08-06 never arrived. A gap in the data is a fact and the analysis should see it.
+
+The cost is that daily_sales has no row for 08-06 and any comparison spanning that date has to account for it. ingestion_log records the failure with a timestamp, so the gap is explainable rather than mysterious.
+
 ### Incident: 2026-08-07 column reorder in orders CSV
 
 - `data/raw/orders_2026-08-07.csv` has a different column order
@@ -160,6 +168,14 @@ Two append-only CSV logs (written by `helpers/logs.py`):
 
 ### Why we decided this
 
+The 07-24 file contained 140 rows, all of them 07-23 orders already loaded the day before. All 140 went to rejected_rows. None reached clean_orders.
+
+The check caught it on arrival. src/capture.py compares the file's internal order date against the expected date and returns status=stale when they disagree; helpers/dq.py writes stale(expected=2026-07-24,found=2026-07-23) to the quality log. The run is recorded in ingestion_log.csv as stale, 140 rows.
+
+Deduplicating instead would have answered the wrong question. It assumes a legitimate delivery that happens to overlap. This was yesterday's file republished under today's name, and the useful signal is that the source failed to update. Absorbing the duplicates quietly would have buried that. Letting the UNIQUE constraint on clean_orders reject them downstream works mechanically and fails as a record: the rows vanish with no explanation and the incident becomes a count discrepancy somebody has to reverse-engineer later.
+
+The check is a date comparison, so a file republished with the date corrected but the rows unchanged would pass it. We store a SHA-256 of every file (helpers/io.py:29, written at src/load_raw.py:86) but nothing compares one day's hash against the previous day's. That second signal is in the log and goes unused.
+
 ### Incident: 2026-08-03 empty file
 
 - `data/raw/orders_2026-08-03.csv` contains a header row and zero data rows.
@@ -171,6 +187,14 @@ Two append-only CSV logs (written by `helpers/logs.py`):
   rows to load"). The date is simply absent from `clean_orders`/`daily_sales`.
 
 ### Why we decided this
+
+orders_2026-08-03.csv arrived with headers and no rows. The loader records status=empty and continues. Not a failure, not a success.
+
+Empty and failed describe different upstream conditions. Failed means we could not reach the source. Empty means the source answered and had nothing to give. One is infrastructure, the other is either a real zero-sales day or a vendor-side problem. Collapsing them into one status throws away the distinction at the moment you need it.
+
+We also rejected skipping the file silently, which would have left no trace that 08-03 was attempted at all. The file sits in data/raw/ with the other 31, so the empty file is itself the evidence.
+
+What we cannot do from inside the pipeline is tell an empty file apart from a genuine zero-sales day. Both produce status=empty and no rows. Separating them needs a signal from the source that we do not have.
 
 ### Incident: 2026-08-05 prices arriving as "$157.12" strings
 
@@ -277,6 +301,18 @@ Facts about what exists:
   See audit_gaps.md.
 
 ### Why we decided this
+
+Three decisions sit behind this section: the window, what we claim about revenue, and what we claim about channel.
+
+The window is frozen at 2026-07-07 through 2026-08-07. The pipeline runs on a daily cron, so the database grows every morning. An open window would mean every figure in the deck was stale by the time we presented and anyone rerunning our code would get different numbers than the slides. Freezing costs the most recent days and buys reproducibility. The live dashboard reads the full table and is ahead of the deck by design.
+
+We do not claim rain increases revenue. At a 1mm threshold, mean store-day net revenue ran 10% higher on rainy days, with 6 of 8 stores agreeing. At 10mm the gap widened to 18% but agreement collapsed to 1 of 8, so the larger number rests on a single store. The point estimate moved with the cutoff and the cross-store consistency fell apart with it. We dropped the claim rather than report the threshold that flattered it. dashboard/app.py:516-525 computes both thresholds and renders the warning, so the fragility is visible on the board instead of buried here.
+
+We do claim rain shifts channel mix. Across 3,721 order lines, 1,629 on rainy store-days and 2,092 on dry, pickup share rises from 17.9% to 21.5%, a shift of 3.6 points (z ≈ 2.8, p ≈ .006). In-store falls 2.8 points, ship-from-store 0.8. This holds at every cutoff from 0.5 to 10mm. Customers change how they buy, not whether they buy.
+
+Sample size is the limit worth stating. 1,367 daily_sales rows look like a lot, but weather varies by store and date, not by category, so 232 independent store-day observations sit behind every weather result here. Eight stores, 29 dates. One unusual week is a meaningful fraction of that.
+
+One reconciliation note. The dashboard reports $1,373.7K because it filters to the six named categories. Three rows carrying $930.45 sit under UNKNOWN, all tracing to product key NP9999, which appears in four order lines in orders_2026-07-30.csv and in no other file. NP9999 is in neither products nor new_products, so it has no crosswalk row. This is a referential integrity gap, not an entity-resolution failure: the four unresolved products in §4 are in the crosswalk with match_status = 'unresolved'. The pipeline kept the revenue and labelled the category UNKNOWN rather than dropping the rows. Nothing flagged it at ingestion; we found it by tracing the difference between the dashboard total and the reconciliation figure.
 
 ---
 
