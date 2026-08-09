@@ -18,6 +18,31 @@ commit the refreshed database and logs. Daily `Daily capture` / `Daily build`
 commits are visible in git history (e.g. commits `4d410a0` / `93800ac` for
 2026-08-07).
 
+### How much of the log is scheduled, and how much is backfill
+
+Worth stating plainly, because the log does not look like 33 daily runs and we
+would rather say so than have someone notice. 28 of the 33 rows in
+`data/ingestion_log.csv` share one `run_timestamp`, `2026-08-03T23:56:18Z`, and
+all 28 record the old `tiny.utk.edu` URL. They are a single backfill executed
+when we consolidated into this repository. Scheduled per-day capture **in this
+repository** begins 2026-08-04 and accounts for the remaining five rows
+(08-04, 08-05, 08-06, 08-07, 08-08), each recording the
+`raw.githubusercontent.com` URL and each corroborated by a `github-actions[bot]`
+commit at the same timestamp to the second.
+
+The earlier days were captured daily in the predecessor repository
+(`jdyess-cell/BZAN-545-Final-Project`) and carried over intact at the 08-03
+consolidation, which is why the raw files exist for dates no scheduled run in
+this repository covers. [UNVERIFIED: the predecessor's Actions run history
+cannot be checked from this repository's contents.] What this repository can
+show on its own is 32 preserved raw files, none overwritten, and five scheduled
+runs.
+
+One clarification, since the commit pattern invites the wrong reading: there is
+no `Daily build` commit for 08-04 or 08-05, and that is not a failed build. The
+workflow at the time (`f66da7c`, named `Daily orders capture`) had only a capture
+stage. The build stage was added on 08-05 in commit `8c3ef8f`.
+
 ### Incident: source URL migration (2026-08-03 → 2026-08-04)
 
 - The original source URL was `https://tiny.utk.edu/RToutfitters/daily/orders.csv`
@@ -446,6 +471,28 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
 
    Not fixed, documented. The fix is to make the cache key date-independent, or
    to keep dated pulls the way `data/raw/` keeps dated order files.
+9. **The stored file hash is not portable across machines.**
+
+   `helpers/io.file_hash()` (`helpers/io.py:29`) hashes the bytes of the file as
+   it sits in the working tree. Git rewrites line endings on checkout when
+   `core.autocrlf` is on, so the same committed file hashes differently on a
+   Windows clone than on a Linux one. Three of our 32 raw files (2026-07-07,
+   07-08, 07-09) hash differently on disk today than the value recorded in
+   `data/ingestion_log.csv`, because those three rows were written from a
+   checkout with different line-ending settings than the other 29. No data
+   changed; the hash function saw different bytes.
+
+   This matters for one specific reason. Section 3 notes that we store a hash of
+   every file but never compare one day's against the previous day's, and calls
+   that the second stale-file signal we are not using. That comparison would only
+   be trustworthy within a single machine. Run across machines, or in Actions
+   against rows written locally, it would report differences that are line-ending
+   artefacts rather than republished content.
+
+   Not fixed. The fix is to normalize line endings before hashing, or to hash the
+   git blob rather than the working-tree file. The 2026-07-24 stale detection is
+   unaffected: it compares a hash to the previous day's, and both rows were
+   written in the same backfill run on the same machine.
 
 ## AI-Use Disclosure
 
