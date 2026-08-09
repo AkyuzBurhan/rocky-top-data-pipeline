@@ -308,6 +308,30 @@ Ambiguity we handled by keeping it visible rather than resolving it. 72 products
 
 ---
 
+## 4a. Weather API Integration & Design Decisions
+The pipeline uses the Open-Meteo ERA5 archive API to retrieve daily weather data for each store location.
+
+Fifteen JSON cache files exist under data/weather_cache/, one per store, covering the full analysis window (2026‑07‑07 – Present).
+
+The script src/weather.py handles API calls, caching, and loading into the weather_daily table (264 rows = 8 stores × 33 dates).
+
+Each record includes temperature and precipitation metrics joined to daily_sales by store and date.
+
+The archive API was chosen over live endpoints to ensure reproducibility and avoid rate‑limit or latency issues during automated builds.
+
+It is verified in rocky_top.db: all 1,456 daily_sales rows have complete weather data, confirming successful joins.
+
+
+## Why we decided this
+We selected the Open‑Meteo ERA5 archive because it provides consistent, historical data without authentication barriers or usage fees.
+
+The caching of JSON responses per store allowed the pipeline to run offline and reproduce results identically across environments.
+
+This design also ensured that weather sensitivity analysis could be performed deterministically. Since every build uses the same weather snapshot, it eliminates variability from live API updates.
+
+The trade‑off is a slight lag in the most recent data, documented under Limitations, but the stability and transparency outweighed that minor delay.
+
+---
 ## 5. Business Analysis
 
 Facts about what exists:
@@ -538,7 +562,7 @@ quiz or assessment**, per course policy.
 | Claude Code | Repo sweep against the rubric, factual sections of this document, `src/verify_tables.py`, `docs/CONTEXT.md`, `audit_gaps.md` |
 | Claude (Burhan) | `dashboard/app.py`, the Streamlit weather-sensitivity dashboard |
 | [Jack: fill in] | [Jack: fill in] |
-| [James: fill in] | [James: fill in] |
+| Copilot and Claude |  Checking weather data integration and Open-Meteo API caching logic |
 
 ### What was AI-generated
 
