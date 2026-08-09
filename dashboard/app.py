@@ -481,7 +481,19 @@ with tab_weather:
             f'dry vs rainy store-days (rain ≥ {RAIN_MM:g}mm; {n_rain} rain vs {n_dry} dry store-days '
             'in this selection). Unlike the revenue correlation below, the direction of this shift '
             'holds at every rain cutoff tested (0.4–10&nbsp;mm); significance does not survive past '
-            '5mm (p = .10 at 5mm, p = .46 at 10mm).</div>', unsafe_allow_html=True)
+            '5mm (p = .10 at 5mm, p = .46 at 10mm).</div>'
+            # This board and the presentation slides use different definitions on
+            # purpose, and the difference is worth surfacing rather than hiding:
+            # it is the same point the sensitivity warning below makes. See
+            # DECISIONS.md section 5 and analysis/rain_analysis.py.
+            f'<div style="font-size:11.5px;color:{MUTED};border-left:2px solid {BORDER};'
+            f'padding-left:8px;margin-bottom:8px;">This board uses '
+            f'<b style="color:#c7cde0;">rain ≥ {RAIN_MM:g}mm</b> and <b style="color:#c7cde0;">means</b> '
+            'over the live table, which keeps growing. Slides 7a and 7b use strict '
+            '<b style="color:#c7cde0;">&gt; 1mm</b> and <b style="color:#c7cde0;">medians</b> over the '
+            'window frozen at 07-07 to 08-07. The pickup shift is stable across both '
+            '(+3.7 vs +3.8&nbsp;pts); the revenue lift below is not, which is exactly why we '
+            'report the shift and not the lift.</div>', unsafe_allow_html=True)
         if sd_rain.nunique() == 2 and pc["sales_channel"].notna().any():
             sh = (pc.groupby("rain")["sales_channel"].value_counts(normalize=True).unstack() * 100)
             html = ""

@@ -5,8 +5,10 @@ Grain: one row per store per date -> weather_daily. Raw API responses are cached
 under data/weather_cache/ so we do not re-hit the API and can prove provenance.
 
 Uses each store's latitude/longitude (from the stores reference) and the date
-range found in clean_orders. Requires network, so run it on your machine (not in
-GitHub Actions, which uses the cached JSON if committed).
+range found in clean_orders. Requires network. A clean clone reproduces offline
+from the committed cache while the order-date range still matches, but in GitHub
+Actions each daily capture extends the range, so the key misses and all 8 stores
+are re-fetched from Open-Meteo.
 
 Note: the Open-Meteo archive (ERA5) lags reality by a few days, so the most
 recent 1-2 order dates may have no weather row yet; those simply join as NULL in
@@ -32,20 +34,18 @@ def _cache_path(store_id, start, end):
     return config.WEATHER_CACHE_DIR / f"{store_id}_{start}_{end}.json"
 
 
-def _purge_stale_cache(store_id, keep):
-    """Remove older cache files for this store (from a different date range) so
-    the folder keeps exactly one file per store as the range grows."""
-    if not config.WEATHER_CACHE_DIR.exists():
-        return
-    for old in config.WEATHER_CACHE_DIR.glob(f"{store_id}_*.json"):
-        if old != keep:
-            old.unlink()
-
-
 def _fetch_store(store_id, lat, lon, start, end):
-    """Return Open-Meteo JSON for one store/date-range, using the cache if present."""
+    """Return Open-Meteo JSON for one store/date-range, using the cache if present.
+
+    Cache files accumulate rather than being replaced. An earlier version deleted
+    every other cache file for the store before writing, which kept the folder to
+    one file each but meant the previous pull was destroyed on every run. Because
+    the cache key is the date range and the range grows with each new order date,
+    that fired daily. Open-Meteo revises its ERA5 archive, so the discarded pulls
+    were the only record of what the API said before a revision. See DECISIONS.md
+    Limitation 8.
+    """
     cache = _cache_path(store_id, start, end)
-    _purge_stale_cache(store_id, cache)      # keep only the current range per store
     if cache.exists():
         return json.loads(cache.read_text())
     params = {

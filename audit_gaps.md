@@ -1,5 +1,8 @@
 # audit_gaps.md — Internal Submission Triage (not for polish)
 
+> **Snapshot as of 2026-08-07. Superseded by the repo state at HEAD; see
+> docs/DECISIONS.md for current state.**
+
 Audited 2026-08-07 against the submission checklist and rubric. Submission due
 2026-08-09 23:59; live presentation 2026-08-10. Every status cites repo
 evidence; nothing here is a fix — findings only.
@@ -56,15 +59,17 @@ Tested by cloning this repo to a temp directory and running the commands.
 
 ### Things a grader cloning fresh could trip over
 
-1. **Path-form command fails** (above). README has no run instructions at all;
-   only `docs/PROJECT_GUIDE.md` shows the correct `-m` form.
-2. **Stale README** — a grader reading `README.md` first is told the repo is
-   at "Step 0" with everything "[coming next]".
-3. **`credentials.json` looks required but isn't** — README setup says
-   `cp credentials.example.json credentials.json # then fill in real values`,
-   but the SQLite pipeline never reads it (`helpers/db.py` only loads it for
-   the MySQL engines, i.e. `src/extract_reference.py`). A grader may think
-   they need UTK credentials to run anything.
+1. **Path-form command fails** (above). [FIXED since this snapshot: `README.md`
+   now leads with a Quick start showing the `-m` forms and states outright that
+   the path form fails.]
+2. ~~**Stale README** — a grader reading `README.md` first is told the repo is
+   at "Step 0" with everything "[coming next]".~~ [FIXED since this snapshot:
+   README was rewritten in `8b0d36e` and no longer says this.]
+3. **`credentials.json` looks required but isn't.** The SQLite pipeline never
+   reads it (`helpers/db.py` only loads it for the MySQL engines, i.e.
+   `src/extract_reference.py`). [FIXED since this snapshot: README now has a
+   Credentials section saying it is needed only for `src/extract_reference.py`
+   on the UT VPN, and that nothing in Quick start needs it.]
 4. **`src/crosswalk.py` references `docs/DECISIONS.md`** (line 5 and the
    `_validate` console message) — that path does not exist; the new file is
    at the repo root.
@@ -82,9 +87,9 @@ Tested by cloning this repo to a temp directory and running the commands.
 
 | P | Gap | Rubric line at risk | Est. effort |
 |---|-----|--------------------|-------------|
-| **P0** | **No business report/visuals/recommendations** (checklist #8). Nothing exists to grade for "Business analysis/report artifact". Build a report (notebook or HTML) off `daily_sales`: weather-sensitivity by store/category + 2–3 recommendations. Must also address the 2026-08-05 zero-revenue day or exclude/flag it. | Business analysis **5 pts**, plus Overall impression (6) | 3–5 h |
-| **P0** | **AI-use disclosure missing** (checklist #10, explicitly required). Write it under the heading already in DECISIONS.md. | Documentation **5 pts** bucket; explicit checklist item | 15–30 min |
-| **P0** | **DECISIONS.md "Why we decided this" sections are blank + all three audit files uncommitted.** Instructor grades on stated limitations matching reality — the facts are in place; the team must add the why's and commit DECISIONS.md + `src/verify_tables.py` (+ this file if desired). | Documentation 5, Product ER 8, Monitoring 8 | 1–2 h |
+| ~~P0~~ | **CLOSED: business report exists.** `dashboard/app.py` (Streamlit: KPI tiles, revenue by store and category, weather-sensitivity views, inventory/promotion playbook) added in `2f4aef6`; it carries a dynamic zero-revenue banner, and the 2026-08-05 day itself now reconciles at $56,970.09. | Business analysis **5 pts**, plus Overall impression (6) | done |
+| **P0** | **Partly closed: AI-use disclosure section exists, two rows still blank.** "AI-Use Disclosure" section written in `docs/DECISIONS.md` (`6fb4393`), but the tools table at `docs/DECISIONS.md:392-393` still carries literal `[Jack: fill in]` and `[James: fill in]` rows. The section ships blank for two of four members on an explicit checklist item. Only Jack and James can fill these. | Documentation **5 pts** bucket; explicit checklist item | Jack + James, unowned as of this snapshot |
+| ~~P0~~ | **CLOSED: the why's are written and the audit files are committed.** `docs/DECISIONS.md` carries 6 filled "Why we decided this" sections, and `DECISIONS.md`, `CONTEXT.md` and `audit_gaps.md` are all committed (`43bc6d8`, `cfee8f1`), as is `src/verify_tables.py`. | Documentation 5, Product ER 8, Monitoring 8 | done |
 | **P1** | **2026-08-05 `$`-price day: decide and state the position.** Currently revenue for that day is silently 0.0 in `daily_sales` and *no doc mentioned it before this audit*. Options: (a) document as a known issue in DECISIONS.md/report (already drafted; aligns with the instructor's "honest limitations" philosophy), or (b) also fix parsing + add a non-numeric DQ check. Unstated, it's a live-demo landmine: any grader summing August revenue sees a zero day. | Monitoring 8, Business analysis 5 | doc-only: done, review 15 min; code fix: 1–2 h |
 | **P1** | **Stale README** — rewrite status, layout, and add the correct run commands (`-m` forms) + `verify_tables.py` mention; note `credentials.json` is only needed for VPN reference extraction. | Documentation 5, Overall impression 6 | 30–45 min |
 | **P2** | **Path-form run command fails** — either document "-m only" prominently in README (cheap) or make scripts path-runnable. | Documentation 5 | doc: included above; code: 30 min |

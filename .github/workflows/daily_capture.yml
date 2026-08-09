@@ -22,7 +22,7 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
-      # Stage 1: capture + commit FIRST (günlük dosya asla kaybolmasın)
+      # Stage 1: capture + commit FIRST (so the daily file is never lost)
       - name: Capture today's orders
         run: uv run python -m src.capture
 
@@ -34,7 +34,7 @@ jobs:
           git commit -m "Daily capture: $(date -u +%Y-%m-%d)" || echo "Nothing to capture-commit"
           git push
 
-      # Stage 2: tüm pipeline'ı kur + sonuçları commit et
+      # Stage 2: build the whole pipeline + commit the results
       - name: Build the pipeline
         run: uv run python -m src.run_pipeline
 

@@ -18,6 +18,31 @@ commit the refreshed database and logs. Daily `Daily capture` / `Daily build`
 commits are visible in git history (e.g. commits `4d410a0` / `93800ac` for
 2026-08-07).
 
+### How much of the log is scheduled, and how much is backfill
+
+Worth stating plainly, because the log does not look like 33 daily runs and we
+would rather say so than have someone notice. 28 of the 33 rows in
+`data/ingestion_log.csv` share one `run_timestamp`, `2026-08-03T23:56:18Z`, and
+all 28 record the old `tiny.utk.edu` URL. They are a single backfill executed
+when we consolidated into this repository. Scheduled per-day capture **in this
+repository** begins 2026-08-04 and accounts for the remaining five rows
+(08-04, 08-05, 08-06, 08-07, 08-08), each recording the
+`raw.githubusercontent.com` URL and each corroborated by a `github-actions[bot]`
+commit at the same timestamp to the second.
+
+The earlier days were captured daily in the predecessor repository
+(`jdyess-cell/BZAN-545-Final-Project`) and carried over intact at the 08-03
+consolidation, which is why the raw files exist for dates no scheduled run in
+this repository covers. [UNVERIFIED: the predecessor's Actions run history
+cannot be checked from this repository's contents.] What this repository can
+show on its own is 32 preserved raw files, none overwritten, and five scheduled
+runs.
+
+One clarification, since the commit pattern invites the wrong reading: there is
+no `Daily build` commit for 08-04 or 08-05, and that is not a failed build. The
+workflow at the time (`f66da7c`, named `Daily orders capture`) had only a capture
+stage. The build stage was added on 08-05 in commit `8c3ef8f`.
+
 ### Incident: source URL migration (2026-08-03 → 2026-08-04)
 
 - The original source URL was `https://tiny.utk.edu/RToutfitters/daily/orders.csv`
@@ -312,6 +337,16 @@ The window is frozen at 2026-07-07 through 2026-08-07. The pipeline runs on a da
 
 We do not claim rain increases revenue. At a 1mm threshold, mean store-day net revenue ran 10% higher on rainy days, with 6 of 8 stores agreeing. At 10mm the mean gap widened to 18% (the deck's 18.9% is the same comparison on medians), but agreement, counted on per-store median lifts as on slide 7b, fell to 4 of 8 stores, a coin flip. The point estimate moved with the cutoff and the cross-store consistency fell apart with it. We dropped the claim rather than report the threshold that flattered it. dashboard/app.py:516-525 computes both thresholds and renders the warning, so the fragility is visible on the board instead of buried here.
 
+The board and the slides will not print the same numbers, and that is a definition difference rather than a disagreement. The board reads the live table and uses `precipitation_sum >= 1.0mm` with means; slides 7a and 7b use strict `> 1.0mm` with medians over the window frozen at 07-07 to 08-07. Three store-days sit at exactly 1.0mm (S004 07-09, S008 07-20, S005 08-05), so the operator alone moves the rain set. Side by side:
+
+| Figure | Slides (locked, strict `>`, medians) | Board (live, `>=`, means) |
+|---|---|---|
+| Pickup share shift | 17.9 to 21.6, +3.7pp | 17.8 to 21.6, +3.8pp |
+| Revenue lift at 1mm | +13.9%, 6 of 8 stores | +8.2%, 6 of 8 stores |
+| Revenue lift at 10mm | +18.9%, 4 of 8 stores | +16.6%, 3 of 8 stores |
+
+The pattern is the argument. The finding we report survives both definitions and both windows almost unchanged. The finding we killed moves by 5 to 6 points and loses a store of agreement depending on which definition you pick, which is the same instability that got it killed. The board now carries a note saying which definition it uses and why it differs, so anyone comparing the two screens gets the answer without asking.
+
 We do claim rain shifts channel mix. Figures are computed on the analysis window frozen at commit `82d221e`, with rain defined as `precipitation_sum > 1.0mm` at store-day grain, matching the deck. Across 3,721 order lines, 1,568 on rainy store-days and 2,153 on dry, pickup share rises from 17.9% to 21.6%, a shift of +3.7 points (z ≈ 2.8, p ≈ .006). In-store falls 3.1 points, ship-from-store 0.5. The derivation is committed at `analysis/rain_analysis_output.md`. The direction holds at every cutoff tested from 0.4 to 10mm; significance does not survive past 5mm (p = .10 at 5mm, p = .46 at 10mm), as the rainy line count thins. Customers change how they buy, not whether they buy.
 
 Sample size is the limit worth stating. 1,367 daily_sales rows look like a lot, but weather varies by store and date, not by category, so 232 independent store-day observations sit behind every weather result here. Eight stores, 29 dates. One unusual week is a meaningful fraction of that.
@@ -340,11 +375,35 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    currency strings and the parser recovering all 5. The day now reports
    $56,970.09 net.
 
-   **What is still true.** `src/check_quality.py` skips any file already recorded
-   in the quality log, so the non-numeric gate has never run against our 32
-   historical files. It has only ever fired on the synthetic fixture. If an
-   earlier file carried the same formatting and we missed it, this gate would not
-   tell us.
+   **The gap that remained, and how we closed it.** `src/check_quality.py` skips
+   any file already recorded in the quality log. That is correct for a daily
+   pipeline and wrong for a check added after the fact: the non-numeric gate had
+   only ever fired on the synthetic fixture, never on real data. If an earlier
+   file had carried the same formatting, this gate would not have told us.
+
+   So we asked it. `src/verify_dq_history.py` re-runs the current gate over every
+   file in `data/raw/` in memory and diffs each result against the row already in
+   the log. Actual output:
+
+   ```
+   re-checked 32 file(s) in raw/ against the current gate
+   KNOWN      orders_2026-08-05.csv
+              gate now adds: nonnumeric(unit_price=155)
+              documented in DECISIONS.md Limitation 1
+   PASS: 1 known difference(s), no undocumented ones. The quality log was not modified.
+   ```
+
+   2026-08-05 is the only affected day, and the gate catches all 155 rows of it.
+   No other historical file carries unparseable numerics.
+
+   **What is still true.** The script writes nothing, on purpose. The 2026-08-05
+   row in `data/data_quality_log.csv` records `na_unit_price=0` with no
+   non-numeric flag, and that row is the evidence that no check fired at the time.
+   Regenerating the log would replace the record of the miss with a clean row and
+   erase the incident. So the gate is verified against history but the history
+   itself is left as it happened, and `check_quality.py` still will not re-check a
+   logged file on its own. A future check added after ingestion has the same blind
+   spot until someone runs the verifier again.
 2. **Crosswalk integrity check is not persisted.** `_validate()`
    (`src/crosswalk.py`) confirms 1:1 assignment (76/76 unique new IDs) but
    only prints to stdout; nothing writes it to a table, log, or file, so
@@ -376,6 +435,83 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    `header_mislabeled_product` flag (`helpers/dq.py`) and the
    `product_id_source` logic exist in code, but no committed raw file
    exercises them (no DQ row has `has_source_flag=1`).
+8. **Weather raw is not preserved.**
+
+   Raw-first preservation is a property of the orders feed, not of the pipeline.
+   The weather source is the exception, and we should not claim otherwise.
+
+   `_purge_stale_cache()` (`src/weather.py:35-42`) unlinks every prior cache file
+   for a store whenever the date range changes. Because the cache key *is* the
+   date range (`{store_id}_{start}_{end}.json`), and the range is derived from
+   the order dates in `clean_orders`, every new order date changes the key. Each
+   run therefore deletes the previous pull and refetches the full history. Unlike
+   `data/raw/`, where each day's file is kept forever, the weather cache holds
+   exactly one snapshot per store: the most recent one. Prior responses are gone,
+   not archived.
+
+   The deletions are visible in git. Commit `b191765` ("Daily build: 2026-08-08")
+   removed all eight `data/weather_cache/*_2026-07-07_2026-08-07.json` files and
+   added the `*_2026-08-08.json` replacements; `93800ac` did the same from
+   `08-05` to `08-07`. Both are bot commits from the daily Action.
+
+   This matters because Open-Meteo revises its archive. Comparing the cache at
+   the locked snapshot `82d221e` against the current files, over the 256
+   store-days the two have in common:
+
+   - 5 store-days had `precipitation_sum` revised.
+   - 2 of those crossed the deck's rain threshold (store-day grain, strictly
+     `> 1.0mm`) and flipped classification:
+     2026-08-07 S007, 2.3mm to 0.9mm, rain to dry; and
+     2026-08-07 S008, 0.4mm to 3.7mm, dry to rain.
+
+   All five revisions fall on 2026-08-07, the newest date at lock time, which is
+   the behaviour you would expect from a preliminary ERA5 value being settled
+   later. The consequence is that a rain-day figure computed today will not
+   always match one computed from the same code last week, and we cannot
+   reconstruct the earlier answer, because the inputs that produced it were
+   deleted rather than kept.
+
+   `analysis/rain_analysis.py:5-8` already records the symptom, noting that
+   S007's rain-day share moved from 41.4% (12/29) at lock to 37.9% (11/29) on
+   live data. It attributes this to Open-Meteo revising history, which is the
+   upstream cause. The local cause is this limitation: the pipeline discards its
+   own prior pull, so a revision upstream becomes unrecoverable here. The deck is
+   reproducible only because it is pinned to the `82d221e` database snapshot, not
+   because the weather inputs were preserved.
+
+   **Fixed going forward, not retroactively.** The deletion loop is gone from
+   `src/weather.py`; `_fetch_store` now writes the new cache file and leaves the
+   old ones alone, so pulls accumulate the way `data/raw/` accumulates order
+   files. The cost is disk, roughly 8 small JSON files per run.
+
+   What that does not do is bring anything back. The five revisions measured
+   above happened while the purge was live, so the pre-revision responses were
+   already deleted; they survive only inside committed `rocky_top.db` snapshots,
+   which is luck rather than design. Preservation starts from this commit. The
+   deck remains reproducible because it is pinned to `82d221e`, not because its
+   weather inputs were kept.
+9. **The stored file hash is not portable across machines.**
+
+   `helpers/io.file_hash()` (`helpers/io.py:29`) hashes the bytes of the file as
+   it sits in the working tree. Git rewrites line endings on checkout when
+   `core.autocrlf` is on, so the same committed file hashes differently on a
+   Windows clone than on a Linux one. Three of our 32 raw files (2026-07-07,
+   07-08, 07-09) hash differently on disk today than the value recorded in
+   `data/ingestion_log.csv`, because those three rows were written from a
+   checkout with different line-ending settings than the other 29. No data
+   changed; the hash function saw different bytes.
+
+   This matters for one specific reason. Section 3 notes that we store a hash of
+   every file but never compare one day's against the previous day's, and calls
+   that the second stale-file signal we are not using. That comparison would only
+   be trustworthy within a single machine. Run across machines, or in Actions
+   against rows written locally, it would report differences that are line-ending
+   artefacts rather than republished content.
+
+   Not fixed. The fix is to normalize line endings before hashing, or to hash the
+   git blob rather than the working-tree file. The 2026-07-24 stale detection is
+   unaffected: it compares a hash to the previous day's, and both rows were
+   written in the same backfill run on the same machine.
 
 ## AI-Use Disclosure
 

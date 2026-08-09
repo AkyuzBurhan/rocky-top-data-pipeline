@@ -258,11 +258,12 @@ def crosswalk_scores(con):
              f"0.6 + subclass {exhibit[4]:.2f} x 0.2 + price "
              f"{exhibit[5]:.3f} x 0.2 = composite {exhibit[0]:.3f}, clearing "
              f"the floor by {exhibit[0] - floor:.3f}. The components and "
-             f"composite check out. KNOWN DISCREPANCY: the slide-5 speaker "
-             f"note calls P1076 the weakest accept; by recomputed composite "
-             f"it is not (P1072 accepted at 0.657, and the weakest "
-             f"possible_match at 0.642, both sit lower). The 0.668 and "
-             f"0.068 figures themselves are correct for P1076.")
+             f"composite check out. CORRECTED in 707fce9: the slide-5 speaker "
+             f"note used to call P1076 the weakest accept, which the "
+             f"recomputed composites contradict (P1072 accepted at 0.657, and "
+             f"the weakest possible_match at 0.642, both sit lower). The note "
+             f"now says \"thin accept\" and claims no superlative. The 0.668 "
+             f"and 0.068 figures themselves are correct for P1076.")
     if r and a and r[-1] > a[0]:
         lo, hi = max(a[0], r[0]), min(a[-1], r[-1])
         n_a = sum(1 for s in a if lo <= s <= hi)
@@ -300,7 +301,7 @@ def figure_index():
         ("rho = -0.43", "7b/A2 notes", "-0.43 (S001 x temp_max)"),
         ("0.668 >= 0.60", "5/A1 exhibit", "P1076 composite 0.668"),
         ("cleared the floor by 0.068", "5 notes",
-         "0.068 for P1076; see the known discrepancy above on 'weakest'"),
+         "0.068 for P1076; see the correction above on 'weakest'"),
         ("name 0.50, price 0.841", "A1 table", "0.50 and 0.841"),
     ]:
         emit(f"| {token} | {slide} | {computed} |")
