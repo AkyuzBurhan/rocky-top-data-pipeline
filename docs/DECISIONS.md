@@ -30,13 +30,21 @@ repository** begins 2026-08-04 and accounts for the remaining five rows
 `raw.githubusercontent.com` URL and each corroborated by a `github-actions[bot]`
 commit at the same timestamp to the second.
 
-The earlier days were captured daily in the predecessor repository
-(`jdyess-cell/BZAN-545-Final-Project`) and carried over intact at the 08-03
-consolidation, which is why the raw files exist for dates no scheduled run in
-this repository covers. [UNVERIFIED: the predecessor's Actions run history
-cannot be checked from this repository's contents.] What this repository can
-show on its own is 32 preserved raw files, none overwritten, and five scheduled
-runs.
+The 28 backfilled files were not all captured by a single cron, and the log
+would be less honest if we implied otherwise. Most came from the predecessor
+repository (`jdyess-cell/BZAN-545-Final-Project`), which ran its own daily
+capture up to the 2026-08-03 consolidation. Two days — **2026-07-21 and
+2026-07-22** — were missed by that main cron; they were recovered from two
+private backup repositories the team had set up in parallel specifically as
+insurance against exactly this kind of silent single-collector failure. Both
+backup crons captured those two days on schedule. When we consolidated into
+this repository on 2026-08-03, all three sources were stitched into a single
+`data/raw/` folder and logged in one backfill run, which is why the 28 rows
+share a timestamp even though the files behind them came from three separate
+crons running over the course of the month. [UNVERIFIED: the predecessor's and
+backups' Actions run histories cannot be checked from this repository's
+contents.] What this repository can show on its own is 32 preserved raw files,
+none overwritten, and five scheduled runs.
 
 One clarification, since the commit pattern invites the wrong reading: there is
 no `Daily build` commit for 08-04 or 08-05, and that is not a failed build. The
@@ -408,17 +416,21 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    (`src/crosswalk.py`) confirms 1:1 assignment (76/76 unique new IDs) but
    only prints to stdout; nothing writes it to a table, log, or file, so
    there is no durable evidence of the check passing for any given build.
-3. **Two capture crons must be disabled after the course ends.**
+3. **Four capture crons must be disabled after the course ends.**
 
    This repo carries one workflow, `.github/workflows/daily_capture.yml`, on a
    daily cron at 13:00 UTC. The predecessor repo,
    `jdyess-cell/BZAN-545-Final-Project`, carries its own `Collect Daily Orders`
    cron that was never disabled when we consolidated on 2026-08-03. It has been
-   firing and failing daily since. Two repos, one workflow each, both on the
+   firing and failing daily since. On top of those two, the team maintains two
+   private backup repositories that also run daily capture crons — the same
+   insurance layer that recovered 2026-07-21 and 2026-07-22 when the main cron
+   silently missed them (see §1). Four repos, one workflow each, all on the
    shutdown list.
 
-   [UNVERIFIED] The predecessor's run history cannot be checked from this repo's
-   contents. This rests on the migration timeline in §1 and on `README.md`.
+   [UNVERIFIED] The predecessor's and backups' run histories cannot be checked
+   from this repo's contents. This rests on the migration timeline in §1 and on
+   `README.md`.
 4. **SQLite is single-user and the UTK team DB goes stale.** No
    `publish_to_utk.py` exists yet, so final tables live only in the committed
    `rocky_top.db`; the team MySQL DB holds only reference tables. Multi-user
