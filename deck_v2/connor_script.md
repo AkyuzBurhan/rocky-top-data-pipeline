@@ -19,11 +19,16 @@ run (4:15) — plus two handoffs and a one-line close.
 You are first, cold, at 10:00. This is the only part you should be able to
 deliver with the screen switched off.
 
-### On the cover (0:15)
+### On the cover (0:20)
+
+The cover now shows the business question. Speak it — don't leave it as decoration.
 
 > "Good morning. We're Rocky Top Outfitters — a daily data pipeline for an
 > outdoor retailer with eight stores.
 >
+> Our question was simple: does weather change what people buy? `[pause]`
+>
+> An honest answer needed something first — a pipeline we could trust.
 > I want to start with the part most projects leave out." `[pause — advance]`
 
 ### On slide 01 (0:30)
