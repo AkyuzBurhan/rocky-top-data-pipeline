@@ -58,6 +58,9 @@ def cover(prs):
                 [(c.COVER_TITLE_2, d.SANS_SB, 40, d.INK),
                  (".", d.SANS_SB, 40, d.ORANGE)]],
                space_after=0, line_spacing=1.08)
+    d.add_text(s, d.MARGIN, 4.85, 9.0, 0.6,
+               [[(c.COVER_QUESTION, d.SANS, 16, d.INK)]],
+               space_after=0)
     d.add_text(s, d.MARGIN, 6.72, d.CONTENT_W, 0.3,
                [[(c.COVER_ROSTER, d.SANS, 12, d.GRAY)]])
     d.add_text(s, d.MARGIN, 7.08, 4.0, 0.3,
