@@ -77,11 +77,15 @@ Run outside the pipeline:
 
 `src/weather.py` requires network access. A clean clone reproduces offline from
 the committed cache, but only while the order-date range still matches: cache
-files are named `{store_id}_{start}_{end}.json`, and `_purge_stale_cache`
-(`src/weather.py:35-42`) deletes a store's older-range files before reading. So
-in GitHub Actions, where each daily capture extends the range, the committed
-cache is deleted and all 8 stores are re-fetched from Open-Meteo, then committed
-back by the build step.
+files are named `{store_id}_{start}_{end}.json`, and each daily run of the
+pipeline writes a new file for the new range **without deleting the previous
+one**. So in GitHub Actions, where each daily capture extends the range, all 8
+stores are re-fetched from Open-Meteo and the new cache files are committed back
+by the build step, while earlier cache files remain in the repo as an audit
+trail. An earlier version of `_fetch_store` deleted older-range files before
+writing; see `docs/DECISIONS.md` Limitation 8 for why that behavior was removed
+(short version: Open-Meteo revises its archive, and deleting the previous pull
+destroyed the only record of what the API had said before a revision).
 
 ## Documentation
 

@@ -432,8 +432,11 @@ docs/      this guide + decision/quality notes
   `clean_orders`, calls the Open-Meteo archive API, **caches** the raw JSON under
   `data/weather_cache/`, and writes one row per store per date.
 - **Key functions:** `fetch_weather(engine)`, `_fetch_store(...)` (uses the cache
-  if present), `_purge_stale_cache(...)` (keeps only one cache file per store as
-  the date range grows, so `data/weather_cache/` doesn't accumulate old files).
+  if present; writes a new file for a new date range and **leaves earlier files
+  alone**, so `data/weather_cache/` accumulates one snapshot per pipeline run
+  rather than being overwritten). An earlier `_purge_stale_cache(...)` deleted
+  older-range files before writing — see `docs/DECISIONS.md` Limitation 8 for
+  why that was removed.
 - **How to run:** `uv run python -m src.weather` (needs network).
 - **How to see the result:** console prints
   `weather_daily rebuilt: 264 rows (8 stores x 30 dates, 2026-07-07..2026-08-08)`.
@@ -442,8 +445,9 @@ docs/      this guide + decision/quality notes
   one row per store per **calendar** date across the requested range —
   2026-07-07..2026-08-08 is 33 days, and 8 x 33 = 264. The three extra days are the
   ones with no surviving orders: 2026-07-24 (stale copy, deduped out), 2026-08-03
-  (empty file), 2026-08-06 (source 404). One cached JSON per store appears in
-  `data/weather_cache/`; inspect the `weather_daily` table.
+  (empty file), 2026-08-06 (source 404). Cached JSON files accumulate under
+  `data/weather_cache/` — one per store per daily pipeline run, not overwritten
+  (see `docs/DECISIONS.md` Limitation 8); inspect the `weather_daily` table.
 
 ---
 
@@ -515,7 +519,9 @@ docs/      this guide + decision/quality notes
 - GitHub Actions **daily full pipeline** (`.github/workflows/daily_capture.yml`):
   capture + commit, then rebuild + commit db/logs, so monitoring logs get a real
   timestamp every day.
-- Weather cache cleanup (one file per store).
+- Weather cache preservation: the earlier single-file-per-store deletion in
+  `_fetch_store` was removed so daily pulls accumulate as an audit trail; see
+  `docs/DECISIONS.md` Limitation 8 for the reasoning.
 - `src/verify_tables.py` — a runnable "the SQL tables exist" demo. Exits 0 with a
   row count per table; works from both `uv run python -m src.verify_tables` and the
   path form.
