@@ -469,8 +469,17 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    reproducible only because it is pinned to the `82d221e` database snapshot, not
    because the weather inputs were preserved.
 
-   Not fixed, documented. The fix is to make the cache key date-independent, or
-   to keep dated pulls the way `data/raw/` keeps dated order files.
+   **Fixed going forward, not retroactively.** The deletion loop is gone from
+   `src/weather.py`; `_fetch_store` now writes the new cache file and leaves the
+   old ones alone, so pulls accumulate the way `data/raw/` accumulates order
+   files. The cost is disk, roughly 8 small JSON files per run.
+
+   What that does not do is bring anything back. The five revisions measured
+   above happened while the purge was live, so the pre-revision responses were
+   already deleted; they survive only inside committed `rocky_top.db` snapshots,
+   which is luck rather than design. Preservation starts from this commit. The
+   deck remains reproducible because it is pinned to `82d221e`, not because its
+   weather inputs were kept.
 9. **The stored file hash is not portable across machines.**
 
    `helpers/io.file_hash()` (`helpers/io.py:29`) hashes the bytes of the file as
