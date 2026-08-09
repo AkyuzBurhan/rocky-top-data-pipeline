@@ -27,7 +27,7 @@ presentation **Mon 2026-08-10**.
 - `src/verify_tables.py` proves all 10 required tables exist; passes both
   invocation forms. Committed in `43bc6d8`.
 - [DECISIONS.md](DECISIONS.md) has facts for all seven incidents + 7
-  limitations. Committed in `43bc6d8`, at `docs/DECISIONS.md`. All 7 "Why we
+  limitations. Committed in `43bc6d8`, at `docs/DECISIONS.md`. Its 6 "Why we
   decided this" sections have since been written.
 
 **Outstanding (see [audit_gaps.md](../audit_gaps.md) §3 for the full table):**
@@ -52,9 +52,9 @@ defended at the presentation. Details in [DECISIONS.md](DECISIONS.md).
 
 | Fact | Value | Evidence |
 |------|-------|----------|
-| Raw files preserved | 32 (`orders_2026-07-07` … `08-08`; **no 08-06 file** — 404 day) | `data/raw/` |
+| Raw files preserved | 31 (`orders_2026-07-07` … `08-07`; **no 08-06 file** — 404 day) | `data/raw/` |
 | Ingestion log rows / DQ log rows | 33 / 31 | `data/ingestion_log.csv`, `data/data_quality_log.csv` |
-| Table row counts | raw_orders 4,027; clean_orders 3,883; daily_sales 1,414; weather_daily 264; rejected_rows 144; crosswalk 80; stores 8; products 80; new_products 80; **ingestion_log 33** | `src/verify_tables.py` output, pasted in [DECISIONS.md](DECISIONS.md) §2 |
+| Table row counts | raw_orders 3,865; clean_orders 3,721; daily_sales 1,367; weather_daily 256; rejected_rows 144; crosswalk 80; stores 8; products 80; new_products 80; **ingestion_log 33** | `src/verify_tables.py` output, pasted in [DECISIONS.md](DECISIONS.md) §2 |
 | rejected_rows = 144 | 140 stale-copy rows (07-24 file = byte-identical 07-23 file, same SHA-256) + 4 dup rows from 07-16 | `data/ingestion_log.csv` (hash `ebea0940…` twice), `rocky_top.db` rejected_rows |
 | Crosswalk methods | 51 exact_name / 25 attributes_fuzzy / 4 none | `data/reference/product_crosswalk.csv` |
 | Crosswalk statuses | 72 matched / 4 possible_match / 4 unresolved; 18 rows needs_review=1 | same |
@@ -62,7 +62,7 @@ defended at the presentation. Details in [DECISIONS.md](DECISIONS.md).
 | Decoys caught | all 4 planted "… Alt" pairs (P1077–P1080 → possible_match); NP5077–5080 are literal "Alt" twins of NP5073–5076; P1078's *chosen* match is the Alt (NP5078) | `data/reference/new_products.csv`, `product_crosswalk.csv` |
 | Unresolved | P1069/71/73/75, note "no candidate sharing launch_date+margin+department"; sales recovered as `category_source=legacy_recovered` | `product_crosswalk.csv`, `src/transform.py` |
 | Integrity check | 76/76 new IDs unique (1:1) — **stdout only, never persisted** | `src/crosswalk.py _validate()`, clean-clone run output |
-| Revenue reconciliation | daily_sales net = clean_orders line_revenue = **$1,434,503.62** → MATCH; grain unique: True; weather joined 1,414/1,414 | `rocky_top.db` at HEAD (the $1,317,702.22 figure in the [audit_gaps.md](../audit_gaps.md) §2 clean-clone transcript is the 2026-08-07 value, before the `$`-price fix) |
+| Revenue reconciliation | daily_sales net = clean_orders line_revenue = **$1,317,702.22** → MATCH; grain unique: True; weather joined 1,367/1,367 | clean-clone run output in [audit_gaps.md](../audit_gaps.md) §2 |
 | 2026-08-05 `$` prices | all 155 rows `$`-prefixed → 155 NULL unit_price in clean_orders → **net_revenue = 0.0 for the whole day** with positive units_sold; DQ flagged nothing | `data/raw/orders_2026-08-05.csv`, `rocky_top.db`, `data/data_quality_log.csv` |
 | 08-07 column reorder | handled — ingestion is header-based, not positional | `helpers/io.py`, `src/load_raw.py`, log rows for 08-07 |
 | Path-form command | `uv run python src/run_pipeline.py` **fails** (`ModuleNotFoundError: No module named 'src'`); only `-m` form works | tested from clean clone, [audit_gaps.md](../audit_gaps.md) §2 |
