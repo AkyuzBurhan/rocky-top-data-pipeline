@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A pipeline that notices when it's wrong — BZAN 545</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   FIXED 16:9 STAGE — MANDATORY BASE STYLES (viewport-base.css)
+   Slides are authored at 1920x1080 and scaled as a whole.
+   ============================================================ */
+html, body { width:100%; height:100%; margin:0; overflow:hidden; background: var(--stage-bg, #000); }
+.deck-viewport { position:fixed; inset:0; overflow:hidden; background: var(--stage-bg,#000); }
+.deck-stage { position:absolute; left:0; top:0; width:1920px; height:1080px; overflow:hidden; transform-origin:0 0; background: var(--slide-bg,#fff); }
+.slide { position:absolute; inset:0; width:1920px; height:1080px; overflow:hidden; display:block; visibility:hidden; opacity:0; pointer-events:none; background: var(--slide-bg,#fff); }
+.slide.active, .slide.visible { visibility:visible; opacity:1; pointer-events:auto; z-index:1; }
+img, video, canvas, svg { max-width:100%; max-height:100%; }
+.deck-controls { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); z-index:1000; }
+/* PDF export: one 16:9 slide per page. 1920x1080 css px at 96dpi = 20in x 11.25in.
+   print-color-adjust keeps the bone paper and the orange, which browsers
+   otherwise drop when printing. */
+@page { size: 20in 11.25in; margin: 0; }
+@media print {
+  *, *::before, *::after { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  html, body { width:1920px; height:auto; overflow:visible; background:#fff; }
+  .deck-viewport { position:static; overflow:visible; background:#fff; }
+  .deck-stage { position:static; width:auto; height:auto; transform:none !important; background:none; }
+  .slide { position:relative; display:block !important; visibility:visible !important; opacity:1 !important; pointer-events:auto !important; width:1920px; height:1080px; break-after:page; page-break-after:always; }
+  .slide:last-child { break-after:auto; page-break-after:auto; }
+  .deck-controls, .progress { display:none !important; }
+  /* reveals are decoration only — never let them hide content on paper */
+  .reveal, .stag > *, .marks i { opacity:1 !important; transform:none !important; transition:none !important; }
+  .spine { transform:scaleY(1) !important; transition:none !important; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration:.01ms !important; transition-duration:.2s !important; } }
+
+/* ============================================================
+   DESIGN SYSTEM — "Audit Ledger"
+   Bone ledger paper, hairline rules, one signal colour.
+   Display: Bricolage Grotesque. Evidence/chrome: IBM Plex Mono.
+   Body: IBM Plex Sans (the same face the charts are drawn in).
+   ============================================================ */
+:root{
+  --stage-bg:#15161A;          /* letterbox surround */
+  --slide-bg:#F4F1EA;          /* bone paper */
+  --ink:#16181D;
+  --soft:#4A4F58;
+  --muted:#9A9385;
+  --rule:#DAD4C6;
+  --signal:#FF8200;
+  --line-h:72px;               /* ledger ruling pitch */
+}
+.slide{ font-family:'IBM Plex Sans',sans-serif; color:var(--ink); }
+
+/* --- paper: faint ruling + the orange spine down the left margin --- */
+.ledger{ position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, transparent 0 calc(var(--line-h) - 1px), var(--rule) calc(var(--line-h) - 1px) var(--line-h));
+  opacity:.45; }
+.spine{ position:absolute; left:150px; top:0; bottom:0; width:2px; background:var(--signal); opacity:.85; }
+
+/* --- content box --- */
+.pad{ position:absolute; left:214px; right:130px; top:92px; bottom:82px; display:flex; flex-direction:column; }
+
+/* --- mono chrome --- */
+.eyebrow{ display:flex; gap:30px; align-items:baseline; font-family:'IBM Plex Mono',monospace;
+  font-size:19px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); }
+.eyebrow .k{ color:var(--signal); font-weight:600; }
+.foot{ position:absolute; left:214px; right:130px; bottom:36px; display:flex; justify-content:space-between;
+  font-family:'IBM Plex Mono',monospace; font-size:17px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); }
+.foot b{ color:var(--soft); font-weight:500; }
+
+/* --- type scale --- */
+h1{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:139px; line-height:.93;
+  letter-spacing:-.038em; margin:52px 0 0; max-width:1320px; }
+h2{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:63px; line-height:1.02;
+  letter-spacing:-.028em; margin:30px 0 0; max-width:1480px; }
+h2.tight{ font-size:56px; }
+mark{ background:none; color:var(--signal); }
+.lede{ margin:22px 0 0; font-size:29px; line-height:1.45; color:var(--soft); max-width:1180px; }
+.lede.small{ font-size:25px; }
+
+/* --- evidence area ---
+   auto on BOTH sides centres the evidence in whatever space the title block
+   leaves, instead of pinning it to the bottom and opening a void mid-slide. */
+.ev{ margin-top:auto; margin-bottom:auto; padding-top:26px; }
+.ev.center{ display:flex; align-items:center; justify-content:center; }
+.ev img{ display:block; width:100%; height:auto; }
+.cap{ font-family:'IBM Plex Mono',monospace; font-size:17px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--muted); margin-bottom:16px; }
+.note{ font-family:'IBM Plex Mono',monospace; font-size:18px; color:var(--muted); margin-top:18px; letter-spacing:.02em; }
+.note b{ color:var(--soft); font-weight:500; }
+
+/* --- incident dots: filled = caught, hollow = got through --- */
+.dot{ width:14px; height:14px; border-radius:50%; background:var(--signal); display:inline-block; flex:none; }
+.dot.open{ background:transparent; box-shadow:inset 0 0 0 3px var(--signal); }
+
+/* --- ledger table --- */
+table.led{ width:100%; border-collapse:collapse; margin-top:8px; }
+table.led th{ font-family:'IBM Plex Mono',monospace; font-size:16px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; text-align:left; padding:0 22px 14px 0; border-bottom:1px solid var(--rule); }
+table.led td{ font-size:25px; padding:19px 22px 19px 0; border-bottom:1px solid var(--rule); vertical-align:middle; color:var(--soft); }
+table.led td.when{ font-family:'IBM Plex Mono',monospace; font-size:20px; color:var(--ink); letter-spacing:.05em; white-space:nowrap; }
+table.led td.what{ color:var(--ink); font-weight:500; }
+table.led tr.miss td{ color:var(--ink); }
+table.led tr.miss td.what{ font-weight:600; }
+table.led td.mark{ width:34px; padding-right:0; }
+table.led tr:last-child td{ border-bottom:none; }
+
+/* --- three-beat arc (slide 5) --- */
+.arc{ display:flex; gap:0; align-items:stretch; }
+.beat{ flex:1; padding:0 44px; border-left:1px solid var(--rule); }
+.beat:first-child{ padding-left:0; border-left:none; }
+.beat .n{ font-family:'IBM Plex Mono',monospace; font-size:16px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.beat ul{ list-style:none; margin:20px 0 0; padding:0; }
+.beat li{ font-size:24px; line-height:1.42; color:var(--soft); margin-bottom:13px; padding-left:22px; position:relative; }
+.beat li::before{ content:''; position:absolute; left:0; top:12px; width:8px; height:1px; background:var(--muted); }
+.beat.hot .big{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:74px; letter-spacing:-.03em;
+  color:var(--signal); line-height:1; margin-top:16px; }
+.beat.hot .sm{ font-size:22px; color:var(--soft); margin-top:12px; line-height:1.4; }
+
+/* --- pipeline flow (slide 3) --- */
+.flow{ display:flex; align-items:center; gap:0; margin-top:8px; }
+.step{ flex:1; text-align:center; position:relative; }
+.step .box{ border:1px solid var(--rule); background:rgba(255,255,255,.5); padding:30px 12px; }
+.step .box .t{ font-size:25px; font-weight:600; color:var(--ink); }
+.step.on .box{ border-color:var(--signal); box-shadow:inset 0 0 0 1px var(--signal); }
+.step .tag{ font-family:'IBM Plex Mono',monospace; font-size:16px; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--signal); margin-top:16px; height:22px; }
+.arrow{ width:64px; height:1px; background:var(--rule); flex:none; position:relative; }
+.arrow::after{ content:''; position:absolute; right:0; top:-3px; width:7px; height:7px; border-top:1px solid var(--rule);
+  border-right:1px solid var(--rule); transform:rotate(45deg); }
+
+/* --- funnel (slide 7) --- */
+.funnel{ display:flex; align-items:stretch; gap:52px; }
+.fsrc{ flex:none; width:290px; border-right:1px solid var(--rule); padding-right:52px; display:flex; flex-direction:column; justify-content:center; }
+.fsrc .n{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:106px; line-height:.9; letter-spacing:-.04em; }
+.fsrc .l{ font-size:22px; color:var(--soft); margin-top:14px; line-height:1.35; }
+.fbr{ flex:1; display:flex; flex-direction:column; justify-content:center; gap:20px; }
+.frow{ display:flex; align-items:center; gap:26px; }
+.frow .bar{ height:44px; background:var(--signal); flex:none; }
+.frow .bar.q{ background:var(--muted); opacity:.45; }
+.frow .n{ font-family:'IBM Plex Mono',monospace; font-size:31px; font-weight:600; color:var(--ink); width:56px; text-align:right; flex:none; }
+.frow .l{ font-size:24px; color:var(--soft); }
+.fout{ flex:none; width:400px; border-left:1px solid var(--rule); padding-left:52px; display:flex; flex-direction:column; justify-content:center; gap:26px; }
+.fout .big{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:56px; letter-spacing:-.03em; line-height:1; }
+.fout .big.sig{ color:var(--signal); }
+.fout .l{ font-size:21px; color:var(--soft); margin-top:8px; line-height:1.35; }
+
+/* --- join diagram (slide 9) --- */
+.join{ display:flex; align-items:center; gap:46px; }
+.jbox{ border:1px solid var(--rule); background:rgba(255,255,255,.5); padding:34px 40px; flex:1; }
+.jbox .n{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:76px; letter-spacing:-.035em; line-height:1; }
+.jbox .n.sig{ color:var(--signal); }
+.jbox .l{ font-size:23px; color:var(--soft); margin-top:12px; line-height:1.4; }
+.jbox .sub{ font-family:'IBM Plex Mono',monospace; font-size:17px; color:var(--muted); margin-top:14px; letter-spacing:.06em; }
+/* 8 x 29 = 232 cells, drawn literally: the sample size you can count */
+.matrix{ display:grid; gap:3px; margin-top:22px; }
+.matrix i{ aspect-ratio:1; background:var(--signal); opacity:.55; border-radius:1px; }
+.jmul{ flex:none; width:210px; text-align:center; font-size:19px; line-height:1.4; color:var(--soft); }
+.jmul .big{ font-family:'IBM Plex Mono',monospace; font-size:30px; color:var(--signal);
+  display:block; margin-bottom:10px; }
+
+/* --- limitation list (slide 15) --- */
+.lims{ display:flex; flex-direction:column; gap:0; }
+.lim{ display:flex; gap:34px; align-items:flex-start; padding:28px 0; border-bottom:1px solid var(--rule); }
+.lim:last-child{ border-bottom:none; }
+.lim .idx{ font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--signal); font-weight:600; padding-top:7px; flex:none; }
+.lim .tx{ font-size:29px; line-height:1.4; color:var(--ink); }
+.lim .tx em{ font-style:normal; color:var(--soft); display:block; font-size:22px; margin-top:9px; }
+
+/* --- statement slides (cover, closing) --- */
+.stmt{ display:flex; flex-direction:column; justify-content:center; height:100%; }
+.huge{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:152px; letter-spacing:-.04em;
+  line-height:.95; color:var(--ink); }
+.huge.sig{ color:var(--signal); }
+
+/* --- cover-specific --- */
+.who{ position:absolute; right:0; top:0; text-align:right; font-family:'IBM Plex Mono',monospace;
+  font-size:17px; line-height:2.05; color:var(--muted); letter-spacing:.05em; }
+.who b{ color:var(--ink); font-weight:600; }
+.run{ margin-top:auto; padding-top:38px; border-top:1px solid var(--rule); }
+.marks{ position:relative; height:24px; }
+.marks .track{ position:absolute; left:0; right:0; top:50%; height:1px; background:var(--rule); }
+.marks i{ position:absolute; top:50%; width:22px; height:22px; border-radius:50%; margin:-11px 0 0 -11px;
+  background:var(--signal); }
+.marks i.open{ background:var(--slide-bg); box-shadow:inset 0 0 0 3px var(--signal); }
+.legend{ display:flex; gap:40px; margin-top:24px; font-family:'IBM Plex Mono',monospace; font-size:16px;
+  color:var(--muted); letter-spacing:.05em; }
+.legend s{ text-decoration:none; display:inline-flex; align-items:center; gap:11px; }
+
+/* --- appendix --- */
+.appx .eyebrow .k{ color:var(--muted); }
+table.kv{ width:100%; border-collapse:collapse; margin-top:14px; }
+table.kv th{ font-family:'IBM Plex Mono',monospace; font-size:16px; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--muted); font-weight:500; text-align:left; padding:0 20px 13px 0; border-bottom:1px solid var(--rule); }
+table.kv td{ font-size:24px; padding:17px 20px 17px 0; border-bottom:1px solid var(--rule); color:var(--soft); }
+table.kv td.n{ font-family:'IBM Plex Mono',monospace; color:var(--ink); }
+table.kv tr.tot td{ color:var(--ink); font-weight:600; border-bottom:none; }
+table.kv tr.tot td.n{ color:var(--signal); }
+
+/* ============================================================
+   REVEALS — decoration, never carriers.
+   Every slide's FINAL state holds 100% of its content, so the
+   PDF export and a stuck animation both lose nothing.
+   Uses transitions (not keyframes) so the exporter's forced
+   inline styles win, and .no-anim kills them under automation.
+   ============================================================ */
+.reveal{ opacity:0; transform:translateY(20px);
+  transition:opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1); }
+.slide.active .reveal{ opacity:1; transform:none; }
+.slide.active .reveal:nth-child(1){ transition-delay:.05s }
+.slide.active .reveal:nth-child(2){ transition-delay:.13s }
+.slide.active .reveal:nth-child(3){ transition-delay:.21s }
+.slide.active .reveal:nth-child(4){ transition-delay:.29s }
+.slide.active .reveal:nth-child(5){ transition-delay:.37s }
+.slide.active .reveal:nth-child(6){ transition-delay:.45s }
+/* staggered children inside a container */
+.stag > *{ opacity:0; transform:translateY(16px);
+  transition:opacity .45s ease, transform .45s cubic-bezier(.2,.8,.2,1); }
+.slide.active .stag > *{ opacity:1; transform:none; }
+.slide.active .stag > *:nth-child(1){ transition-delay:.30s }
+.slide.active .stag > *:nth-child(2){ transition-delay:.38s }
+.slide.active .stag > *:nth-child(3){ transition-delay:.46s }
+.slide.active .stag > *:nth-child(4){ transition-delay:.54s }
+.slide.active .stag > *:nth-child(5){ transition-delay:.62s }
+.slide.active .stag > *:nth-child(6){ transition-delay:.70s }
+.slide.active .stag > *:nth-child(7){ transition-delay:.78s }
+/* the spine draws down on entry */
+.spine{ transform:scaleY(0); transform-origin:top; transition:transform .9s cubic-bezier(.2,.8,.2,1) .05s; }
+.slide.active .spine{ transform:scaleY(1); }
+/* incident dots pop in */
+.marks i{ opacity:0; transition:opacity .35s ease; }
+.slide.active .marks i{ opacity:1; }
+.slide.active .marks i:nth-child(2){ transition-delay:.85s }
+.slide.active .marks i:nth-child(3){ transition-delay:.93s }
+.slide.active .marks i:nth-child(4){ transition-delay:1.01s }
+.slide.active .marks i:nth-child(5){ transition-delay:1.25s }
+.slide.active .marks i:nth-child(6){ transition-delay:1.09s }
+.slide.active .marks i:nth-child(7){ transition-delay:1.17s }
+
+/* Automation (PDF export) and reduced-motion get the final state instantly. */
+.no-anim .reveal, .no-anim .stag > *, .no-anim .marks i{
+  opacity:1 !important; transform:none !important; transition:none !important; }
+.no-anim .spine{ transform:scaleY(1) !important; transition:none !important; }
+/* presentation chrome is for the live deck only — keep it out of the PDF */
+.no-anim .deck-controls, .no-anim .progress{ display:none !important; }
+
+/* ============================================================
+   PRESENTATION CHROME (outside the slide design system)
+   ============================================================ */
+.deck-controls{ display:flex; align-items:center; gap:14px; padding:9px 16px; border-radius:999px;
+  background:rgba(20,21,26,.72); backdrop-filter:blur(6px);
+  font-family:'IBM Plex Mono',monospace; font-size:13px; color:#CFC9BC; letter-spacing:.08em;
+  opacity:0; transition:opacity .3s ease; }
+.deck-viewport:hover .deck-controls{ opacity:1; }
+.deck-controls button{ background:none; border:none; color:#CFC9BC; font:inherit; cursor:pointer; padding:2px 6px; }
+.deck-controls button:hover{ color:var(--signal); }
+.progress{ position:fixed; left:0; top:0; height:2px; background:var(--signal); z-index:1001; transition:width .3s ease; }
+</style>
+</head>
+<body>
+<div class="progress" id="prog"></div>
+<div class="deck-viewport">
+<div class="deck-stage">
+
+<!-- ============================================================
+     SLIDE 1 — COVER
+     ============================================================ -->
+<section class="slide active">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="who reveal"><b>Connor Kersting</b><br>Jack Dyess<br>Burhan Akyuz<br>James Zhou</div>
+    <div class="eyebrow reveal">
+      <span class="k">BZAN 545</span><span>Rocky Top Outfitters</span>
+      <span>July 7 &rarr; August 7</span><span>August 2026</span>
+    </div>
+    <h1 class="reveal">A pipeline that notices<br>when it's <mark>wrong</mark></h1>
+    <p class="lede reveal">6 failures in 32 days. 5 caught on arrival,
+      one found by hand &mdash; and not a dollar lost to any of them.</p>
+    <div class="run reveal">
+      <div class="cap">the month, as the pipeline recorded it</div>
+      <div class="marks">
+        <div class="track"></div>
+        <i style="left:54.8%"></i><i style="left:67.7%"></i><i style="left:87.1%"></i>
+        <i class="open" style="left:93.5%"></i><i style="left:96.8%"></i><i style="left:100%"></i>
+      </div>
+      <div class="legend">
+        <s><span class="dot"></span> caught on arrival</s>
+        <s><span class="dot open"></span> found later, by hand</s>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================
+     SLIDE 2 — Connor — the month at a glance
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">01</span><span>the month</span></div>
+    <h2 class="reveal">The feed broke 6 times in 32 days.<br>We lost <mark>zero dollars</mark>.</h2>
+    <p class="lede reveal">5 caught on arrival. One got through. We found it and recovered every cent.</p>
+    <div class="ev reveal">
+      <img src="assets/a_timeline.png" alt="Timeline of the analysis window with six incident markers; five filled, one hollow">
+      <div class="note"><b>$1,374,672.31</b> in sales across the window, reconciled to the cent.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Connor</span><span><b>01</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 3 — Jack — the two design habits
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">02</span><span>how it's built</span></div>
+    <h2 class="reveal">Two habits did all the protective work:<br>keep the original, <mark>never trust column order</mark>.</h2>
+    <p class="lede reveal">Everything that follows traces back to these two decisions.</p>
+    <div class="ev reveal">
+      <div class="flow stag">
+        <div class="step"><div class="box"><div class="t">Collect</div></div><div class="tag">&nbsp;</div></div>
+        <div class="arrow"></div>
+        <div class="step on"><div class="box"><div class="t">Keep the original</div></div><div class="tag">habit 1</div></div>
+        <div class="arrow"></div>
+        <div class="step on"><div class="box"><div class="t">Clean &amp; match</div></div><div class="tag">habit 2</div></div>
+        <div class="arrow"></div>
+        <div class="step"><div class="box"><div class="t">Database</div></div><div class="tag">&nbsp;</div></div>
+        <div class="arrow"></div>
+        <div class="step"><div class="box"><div class="t">Dashboard</div></div><div class="tag">&nbsp;</div></div>
+      </div>
+      <div class="note">The database lives with the code, because our automation can't reach the campus server.
+        <b>Cost: it isn't a guaranteed single source of truth.</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>Jack</span><span><b>02</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 4 — Jack — the incident ledger
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">03</span><span>the ledger</span></div>
+    <h2 class="tight reveal">5 of 6 failures were caught <mark>the moment they arrived</mark>.</h2>
+    <div class="ev reveal">
+      <table class="led">
+        <tr><th class="mark"></th><th>When</th><th>What went wrong</th><th>Caught by</th><th>What happened</th></tr>
+        <tbody class="stag">
+          <tr><td class="mark"><span class="dot"></span></td><td class="when">Jul 24</td><td class="what">Yesterday's file sent again</td><td>Arrival check</td><td>140 duplicate rows set aside</td></tr>
+          <tr><td class="mark"><span class="dot"></span></td><td class="when">Jul 28</td><td class="what">Every product ID changed</td><td>Quality flag</td><td>Mapping rebuilt; nothing lost</td></tr>
+          <tr><td class="mark"><span class="dot"></span></td><td class="when">Aug 3</td><td class="what">File arrived empty</td><td>Arrival check</td><td>Logged empty; nothing invented</td></tr>
+          <tr class="miss"><td class="mark"><span class="dot open"></span></td><td class="when">Aug 5</td><td class="what">Prices arrived as text</td><td>Nothing &mdash; found in audit</td><td>$56,970.09 recovered</td></tr>
+          <tr><td class="mark"><span class="dot"></span></td><td class="when">Aug 6</td><td class="what">Source vanished</td><td>Arrival check</td><td>Logged failed; clean the next day</td></tr>
+          <tr><td class="mark"><span class="dot"></span></td><td class="when">Aug 7</td><td class="what">Columns shuffled</td><td>Design absorbed it</td><td>Zero impact</td></tr>
+        </tbody>
+      </table>
+      <div class="note">144 rows set aside, never deleted &mdash; <b>140</b> from the re-sent file,
+        <b>4</b> from an ordinary day.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Jack</span><span><b>03</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 5 — Jack — the one that got through
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">04</span><span>the one that got through</span></div>
+    <h2 class="reveal">A dollar sign turned $57K into $0.<br>We got <mark>every cent</mark> back.</h2>
+    <p class="lede reveal">Three separate checks passed it. The preserved original is why recovery took minutes.</p>
+    <div class="ev reveal">
+      <div class="arc stag">
+        <div class="beat">
+          <div class="n">it passed three checks</div>
+          <ul>
+            <li>A &ldquo;$&rdquo; isn't a missing value</li>
+            <li>The parser silently gave up</li>
+            <li>Totals matched &mdash; both sides were empty</li>
+          </ul>
+        </div>
+        <div class="beat">
+          <div class="n">found by</div>
+          <ul>
+            <li>A hand audit, weeks later</li>
+            <li>No check fired</li>
+            <li>Nobody saw it on the dashboard</li>
+          </ul>
+        </div>
+        <div class="beat hot">
+          <div class="n">recovered</div>
+          <div class="big">$56,970.09</div>
+          <div class="sm">across 155 order lines, derived twice independently &mdash; then a new check added.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Jack</span><span><b>04</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 6 — Jack — DEPTH — the poisoned file
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">04b</span><span>testing our own fix</span></div>
+    <h2 class="reveal">We attacked our own fix with a poisoned file.<br>It caught <mark>all five</mark>.</h2>
+    <p class="lede small reveal">A fix you haven't tested is a claim, not a fix.</p>
+    <div class="ev center reveal">
+      <img src="assets/poison_fixture_log.png" style="max-height:400px; width:auto;"
+           alt="Executed quality-gate log showing the non-numeric price flag firing on five planted values">
+    </div>
+    <div class="note reveal">Executed 2026-08-08 at commit 1c4884f &mdash; a synthetic price-as-text file pushed through
+      the <b>real</b> check and the <b>real</b> parser. Log and metadata committed.</div>
+  </div>
+  <div class="foot"><span>Jack</span><span><b>04b</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 7 — Burhan — re-matching the catalogue
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">05</span><span>the overnight rename</span></div>
+    <h2 class="tight reveal">Every product got a new ID overnight. We re-matched 76 of 80 and <mark>flagged every doubt</mark>.</h2>
+    <div class="ev reveal">
+      <div class="funnel">
+        <div class="fsrc">
+          <div class="n">80</div>
+          <div class="l">products in the old catalogue</div>
+        </div>
+        <div class="fbr stag">
+          <div class="frow"><span class="n">51</span><span class="bar" style="width:340px"></span><span class="l">identical name &mdash; certain</span></div>
+          <div class="frow"><span class="n">25</span><span class="bar" style="width:167px"></span><span class="l">matched on evidence</span></div>
+          <div class="frow"><span class="n">4</span><span class="bar q" style="width:27px"></span><span class="l">no candidate at all</span></div>
+        </div>
+        <div class="fout stag">
+          <div><div class="big">76 of 80</div><div class="l">mapped to a new ID</div></div>
+          <div><div class="big sig">18</div><div class="l">flagged for a human, each with a written reason</div></div>
+        </div>
+      </div>
+      <div class="note">Two thresholds, two jobs. One decides match or no match.
+        The other decides <b>confident</b> or <b>check this</b>.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Burhan</span><span><b>05</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 8 — Burhan — DEPTH — the planted decoys
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">05b</span><span>calibrated doubt</span></div>
+    <h2 class="tight reveal">Four decoy products were planted in the data. The matcher hesitated on <mark>exactly those four</mark>.</h2>
+    <div class="ev reveal">
+      <div class="cap">every candidate score, accepted against rejected</div>
+      <img src="assets/a_scores.png" style="width:88%;"
+           alt="Score strip showing accepted and rejected match scores overlapping above the cut-off">
+      <div class="note">P1077, P1078, P1079, P1080 &rarr; flagged as too close to call.
+        <b>Accepted and rejected scores overlap</b>, so there is no clean cut &mdash; we put ours where a reviewer could still work through it.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Burhan</span><span><b>05b</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 9 — James — the honest sample size
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">06</span><span>attaching the weather</span></div>
+    <h2 class="tight reveal">A month of sales is 1,367 rows &mdash; but only <mark>232</mark> independent weather readings.</h2>
+    <p class="lede reveal">Weather varies by store and day, not by product category.</p>
+    <div class="ev reveal">
+      <div class="join">
+        <div class="jbox">
+          <div class="n sig">232</div>
+          <div class="l">independent weather readings</div>
+          <div class="sub">8 stores &times; 29 selling days</div>
+          <div class="matrix" style="grid-template-columns:repeat(29,1fr)"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="jmul"><span class="big">&rarr;</span>each one shared by every category in that store-day</div>
+        <div class="jbox">
+          <div class="n">1,367</div>
+          <div class="l">rows in the sales table</div>
+          <div class="sub">store &times; day &times; category</div>
+        </div>
+      </div>
+      <div class="note">So 1,367 rows is <b>not</b> 1,367 pieces of evidence about weather.
+        Every claim that follows carries that caveat.</div>
+    </div>
+  </div>
+  <div class="foot"><span>James</span><span><b>06</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 10 — James — DEPTH — the archive rewrote itself
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">06b</span><span>auditing the source</span></div>
+    <h2 class="reveal">The weather archive quietly rewrote its own history.<br>We keep <mark>receipts</mark> now.</h2>
+    <p class="lede reveal">5 store-days changed after we locked our numbers. Two crossed our rain line.</p>
+    <div class="ev reveal">
+      <div class="lims stag">
+        <div class="lim"><div class="idx">&darr;</div><div class="tx">S007 08-07 2.3mm to 0.9mm (rain to dry); S008 08-07 0.4mm to 3.7mm (dry to rain)
+          <em>Both fall on the newest date in our window &mdash; exactly how a preliminary value behaves before it settles.</em></div></div>
+        <div class="lim"><div class="idx">&times;</div><div class="tx">Our cache deleted the previous pull every single run
+          <em>The cache was named by date range, and the range grew daily &mdash; so each run destroyed the only record of what the archive had said before. Found in audit; pulls accumulate now.</em></div></div>
+      </div>
+      <div class="note">That doesn't bring anything back. Our numbers reproduce because they're pinned to a dated snapshot &mdash;
+        <b>which is luck, not design.</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>James</span><span><b>06b</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 11 — Connor — the finding that held
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">07</span><span>what weather actually did</span></div>
+    <h2 class="reveal">Rain doesn't change how much people buy.<br>It changes <mark>how they pick it up</mark>.</h2>
+    <div class="ev reveal">
+      <img src="assets/a_channel.png" style="width:82%;"
+           alt="Change in channel mix on rainy days: pickup up 3.7 points, ship-from-store down 0.5, in-store down 3.1">
+      <div class="note">3,721 orders, 2.76&sigma;, p&nbsp;=&nbsp;0.006 &mdash; but orders in the same store-day
+        aren't independent, so: <b>suggestive, not proven.</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>Connor</span><span><b>07</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 12 — Connor — the finding we killed
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">08</span><span>the finding we killed</span></div>
+    <h2 class="reveal">The +14% rain revenue boost fell apart under testing &mdash; so <mark>we don't claim it</mark>.</h2>
+    <div class="ev reveal">
+      <img src="assets/a_lift.png" style="width:76%;"
+           alt="Median revenue lift at four rain cut-offs, swinging from +9.5% to +18.9% with store agreement collapsing">
+      <div class="note">And the rainiest store is also the richest &mdash; <b>S001: 86% rainy days, $6,673 median day</b> against
+        S006: 14% rainy days, $4,714 median day. Pooling lets that impersonate a rain effect.</div>
+    </div>
+  </div>
+  <div class="foot"><span>Connor</span><span><b>08</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 13 — Connor — DEPTH — sixteen tests
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">08b</span><span>we didn't go fishing</span></div>
+    <h2 class="reveal">We ran 16 tests. One came back significant &mdash; <mark>exactly what chance predicts</mark>.</h2>
+    <div class="ev reveal">
+      <img src="assets/a_tests.png" style="width:74%;"
+           alt="Grid of sixteen correlation tests with a single significant result highlighted">
+      <div class="note">S001 vs temperature: rho = -0.43, p = 0.021. At this sample size, reporting that one as a finding
+        <b>would be the fishing.</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>Connor</span><span><b>08b</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 14 — Connor — CUT-FIRST — the recommendation
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">09</span><span>the recommendation</span></div>
+    <h2 class="reveal">The bet worth making anyway: <mark>staff pickup when rain is forecast</mark>.</h2>
+    <p class="lede reveal">Reallocation, not spend. It needs no claim about total demand.</p>
+    <div class="ev reveal">
+      <div class="arc stag">
+        <div class="beat">
+          <div class="n">the pilot</div>
+          <ul>
+            <li>Two weeks, on forecast-rain days</li>
+            <li>One associate moved to pickup staging</li>
+            <li>At S001 (25 of 29 days) and S002 (21 of 29 days)</li>
+          </ul>
+        </div>
+        <div class="beat">
+          <div class="n">the bar, set in advance</div>
+          <ul>
+            <li>Scale only if pickup share moves 2 points</li>
+            <li>Otherwise stop</li>
+            <li>Wait time is the guardrail</li>
+          </ul>
+        </div>
+        <div class="beat hot">
+          <div class="n">why it's low-regret</div>
+          <div class="big">$0</div>
+          <div class="sm">new spend. It's a reallocation &mdash; which is what makes it worth doing on a suggestive finding.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Connor</span><span><b>09</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 15 — Burhan — what we'd fix first
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">10</span><span>what we'd fix first</span></div>
+    <h2 class="reveal">Our safety rules live in <mark>Python</mark>, not in the database.</h2>
+    <div class="ev reveal">
+      <div class="lims stag">
+        <div class="lim"><div class="idx">01</div><div class="tx">8 of 10 tables lost their declared keys when rebuilt
+          <em>The code enforces them instead. The pipeline is correct &mdash; but the database would accept a wrong write. Fix is known.</em></div></div>
+        <div class="lim"><div class="idx">02</div><div class="tx">14 of 18 flagged product matches flow through unblocked
+          <em>The flag warns, it doesn't stop. We chose that over blocking and losing revenue &mdash; and we state the cost.</em></div></div>
+        <div class="lim"><div class="idx">03</div><div class="tx">Our checks catch the failures we thought of
+          <em>August 5th was found by hand. Nothing anomaly-based would have needed us to imagine it first.</em></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>Burhan</span><span><b>10</b></span></div>
+</section>
+
+<!-- ============================================================
+     SLIDE 16 — Connor — CUT-FIRST — the close
+     ============================================================ -->
+<section class="slide">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="stmt">
+      <div class="eyebrow reveal"><span class="k">11</span><span>and finally</span></div>
+      <div class="huge reveal" style="margin-top:44px;">$1,374,672.31</div>
+      <div class="huge sig reveal" style="font-size:63px; margin-top:34px; letter-spacing:-.028em;">
+        and we can show where every dollar came from.</div>
+      <p class="lede reveal" style="margin-top:40px;">Including the $57K that briefly read as zero.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Connor</span><span><b>11</b></span></div>
+</section>
+
+<!-- ============================================================
+     APPENDIX — not presented; Q&A backup
+     ============================================================ -->
+<section class="slide appx">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">A1</span><span>appendix &middot; how one thin match cleared the bar</span></div>
+    <h2 class="tight reveal">P1076: the name barely matched. The <mark>other evidence</mark> carried it.</h2>
+    <div class="ev reveal">
+      <table class="kv">
+        <tr><th>Component</th><th>Score</th><th>Weight</th><th>Contribution</th></tr>
+        <tbody class="stag">
+          <tr><td>Name similarity</td><td class="n">0.50</td><td class="n">0.6</td><td class="n">0.300</td></tr>
+          <tr><td>Subcategory</td><td class="n">1.00</td><td class="n">0.2</td><td class="n">0.200</td></tr>
+          <tr><td>Price closeness</td><td class="n">0.841</td><td class="n">0.2</td><td class="n">0.168</td></tr>
+          <tr class="tot"><td>Combined</td><td></td><td></td><td class="n">0.668 &mdash; clears 0.60 by 0.068</td></tr>
+        </tbody>
+      </table>
+      <div class="note">The bar applies to the <b>combined</b> score, not the name. And because the name was weak,
+        it was sent to review automatically &mdash; the system flagged its own thin accept.</div>
+    </div>
+  </div>
+  <div class="foot"><span>appendix</span><span><b>A1</b></span></div>
+</section>
+
+<section class="slide appx">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">A2</span><span>appendix &middot; full threshold sensitivity</span></div>
+    <h2 class="tight reveal">The revenue lift at every cut-off we tested.</h2>
+    <div class="ev reveal">
+      <table class="kv">
+        <tr><th style="width:22%">Rain cut-off</th><th>Median revenue lift, and how many stores agree</th></tr>
+        <tbody class="stag">
+          <tr><td class="n">0.4 mm</td><td>+9.5% (3 of 8 stores)</td></tr>
+          <tr><td class="n">1 mm</td><td>+13.9% (6 of 8 stores)</td></tr>
+          <tr><td class="n">5 mm</td><td>+8.3% (4 of 8 stores)</td></tr>
+          <tr><td class="n">10 mm</td><td>+18.9% (4 of 8 stores)</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Rain is <b>a store-day with more than 1mm of rain</b>; lifts are medians of store-day net revenue.
+        The headline only holds at one of these four.</div>
+    </div>
+  </div>
+  <div class="foot"><span>appendix</span><span><b>A2</b></span></div>
+</section>
+
+<section class="slide appx">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">A3</span><span>appendix &middot; locked slides against today's data</span></div>
+    <h2 class="tight reveal">What moved since we locked, and what didn't.</h2>
+    <div class="ev reveal">
+      <table class="kv">
+        <tr><th>Figure</th><th>On these slides (locked)</th><th>On today's data</th></tr>
+        <tbody class="stag">
+          <tr><td>Pickup shift</td><td class="n">+3.7 points</td><td class="n">+3.4 points (z = 2.59, p = 0.009)</td></tr>
+          <tr><td>Rainy days at S007</td><td colspan="2" class="n">S007: 12/29 rainy days locked, 11/29 today</td></tr>
+          <tr><td>Rainy days at S008</td><td colspan="2" class="n">S008: 5/29 rainy days locked, 6/29 today</td></tr>
+          <tr><td>Revisions by the archive</td><td colspan="2" class="n">5 store-days &mdash; S007 08-07 2.3mm to 0.9mm (rain to dry); S008 08-07 0.4mm to 3.7mm (dry to rain)</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Revenue, row counts and the entire product mapping did <b>not</b> move:
+        5 figures identical in the locked snapshot and today's database &mdash; asserted on every build, which fails loudly if they ever diverge.</div>
+    </div>
+  </div>
+  <div class="foot"><span>appendix</span><span><b>A3</b></span></div>
+</section>
+
+<section class="slide appx">
+  <div class="ledger"></div><div class="spine"></div>
+  <div class="pad">
+    <div class="eyebrow reveal"><span class="k">A4</span><span>appendix &middot; the executed gate test</span></div>
+    <h2 class="tight reveal">The poisoned-file test, in full.</h2>
+    <div class="ev center reveal">
+      <img src="assets/poison_fixture_log.png" style="max-height:430px; width:auto;"
+           alt="Full quality-gate log from the executed poison-fixture test">
+    </div>
+    <div class="note reveal">Executed 2026-08-08 at commit 1c4884f. The gate flagged all 5 planted values while the
+      old missing-value check still read clean; the parser then recovered every one of them to the cent.</div>
+  </div>
+  <div class="foot"><span>appendix</span><span><b>A4</b></span></div>
+</section>
+
+</div><!-- /deck-stage -->
+
+<div class="deck-controls">
+  <button id="prev">&larr;</button>
+  <span id="counter">1 / 20</span>
+  <button id="next">&rarr;</button>
+  <span style="opacity:.55">E to edit</span>
+</div>
+</div><!-- /deck-viewport -->
+
+<script>
+/* ============================================================
+   DECK CONTROLLER
+   Fixed-stage scaling, slide navigation, inline text editing.
+   ============================================================ */
+(function () {
+  var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+  var stage = document.querySelector('.deck-stage');
+  var counter = document.getElementById('counter');
+  var prog = document.getElementById('prog');
+  var i = 0;
+
+  /* Headless automation (the PDF export) gets final states instantly, so a
+     screenshot can never catch a reveal mid-transition. */
+  if (navigator.webdriver) document.documentElement.classList.add('no-anim');
+
+  function scaleStage() {
+    var s = Math.min(innerWidth / 1920, innerHeight / 1080);
+    stage.style.transform = 'translate(' + ((innerWidth - 1920 * s) / 2) + 'px,' +
+      ((innerHeight - 1080 * s) / 2) + 'px) scale(' + s + ')';
+  }
+
+  function show(n) {
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function (s, idx) { s.classList.toggle('active', idx === i); });
+    counter.textContent = (i + 1) + ' / ' + slides.length;
+    prog.style.width = ((i + 1) / slides.length * 100) + '%';
+    location.hash = i + 1;
+  }
+
+  /* exposed so the PDF exporter can drive the deck directly */
+  window.presentation = { goToSlide: show, get current() { return i; } };
+
+  addEventListener('keydown', function (e) {
+    if (document.body.isContentEditable || e.target.isContentEditable) {
+      if (e.key === 's' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveEdits(); }
+      return;
+    }
+    if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); show(i + 1); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); show(i - 1); }
+    if (e.key === 'Home') show(0);
+    if (e.key === 'End') show(slides.length - 1);
+    if (e.key === 'e' || e.key === 'E') toggleEdit();
+  });
+  document.getElementById('next').onclick = function () { show(i + 1); };
+  document.getElementById('prev').onclick = function () { show(i - 1); };
+
+  /* touch: swipe left/right */
+  var x0 = null;
+  addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
+  addEventListener('touchend', function (e) {
+    if (x0 === null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 55) show(dx < 0 ? i + 1 : i - 1);
+    x0 = null;
+  }, { passive: true });
+
+  /* inline text editing — press E, click any text, Ctrl+S to save a copy */
+  var editing = false;
+  function toggleEdit() {
+    editing = !editing;
+    slides.forEach(function (s) {
+      s.querySelectorAll('h1,h2,p,td,li,.t,.l,.n,.note,.cap,.sm,.big,.tx,em').forEach(function (el) {
+        el.contentEditable = editing;
+      });
+    });
+    document.documentElement.style.outline = editing ? '3px solid var(--signal)' : '';
+    document.documentElement.style.outlineOffset = '-3px';
+  }
+  function saveEdits() {
+    var clone = document.documentElement.cloneNode(true);
+    clone.querySelectorAll('[contenteditable]').forEach(function (el) { el.removeAttribute('contenteditable'); });
+    var blob = new Blob(['<!DOCTYPE html>' + clone.outerHTML], { type: 'text/html' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'deck-edited.html';
+    a.click();
+  }
+
+  /* deep links: /deck.html#7 opens slide 7, and editing the hash navigates */
+  function fromHash() {
+    var n = parseInt((location.hash || '#1').slice(1), 10);
+    if (!isNaN(n) && n - 1 !== i) show(n - 1);
+  }
+  addEventListener('hashchange', fromHash);
+
+  addEventListener('resize', scaleStage);
+  scaleStage();
+  var start = parseInt((location.hash || '#1').slice(1), 10);
+  show(isNaN(start) ? 0 : start - 1);
+})();
+</script>
+</body>
+</html>

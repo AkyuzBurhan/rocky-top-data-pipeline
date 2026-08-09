@@ -1,0 +1,1078 @@
+{
+  "_meta": {
+    "lock_commit": "82d221e",
+    "window": [
+      "2026-07-07",
+      "2026-08-07"
+    ],
+    "rain_rule": "store-day MAX(precipitation_sum) > 1.0mm, strict",
+    "lift_rule": "medians of store-day net revenue",
+    "generated_by": "deck_v2/build_facts.py"
+  },
+  "facts": {
+    "window_start": {
+      "value": "2026-07-07",
+      "display": "July 7",
+      "unit": "",
+      "source": "const",
+      "derivation": "frozen analysis window",
+      "anchor": "docs/DECISIONS.md section 5"
+    },
+    "window_end": {
+      "value": "2026-08-07",
+      "display": "August 7",
+      "unit": "",
+      "source": "const",
+      "derivation": "frozen analysis window",
+      "anchor": "docs/DECISIONS.md section 5"
+    },
+    "window_days": {
+      "value": 32,
+      "display": "32 days",
+      "unit": "",
+      "source": "const",
+      "derivation": "calendar days 07-07..08-07 inclusive",
+      "anchor": "docs/plan.md"
+    },
+    "order_dates": {
+      "value": 29,
+      "display": "29 selling days",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(DISTINCT order_date) FROM daily_sales",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "stores": {
+      "value": 8,
+      "display": "8 stores",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(DISTINCT store_id) FROM daily_sales",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "store_days": {
+      "value": 232,
+      "display": "232",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) over GROUP BY order_date, store_id (independent weather observations)",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "net_revenue": {
+      "value": 1374672.31,
+      "display": "$1,374,672.31",
+      "unit": "",
+      "source": "S",
+      "derivation": "SUM(net_revenue) FROM daily_sales",
+      "anchor": "docs/DECISIONS.md revenue table"
+    },
+    "gross_revenue": {
+      "value": 1479057.85,
+      "display": "$1,479,057.85",
+      "unit": "",
+      "source": "S",
+      "derivation": "SUM(gross_revenue) FROM daily_sales",
+      "anchor": "docs/DECISIONS.md revenue table"
+    },
+    "clean_rows": {
+      "value": 3721,
+      "display": "3,721",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM clean_orders",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "daily_rows": {
+      "value": 1367,
+      "display": "1,367",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM daily_sales",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "weather_rows": {
+      "value": 256,
+      "display": "256",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM weather_daily",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "rejected_total": {
+      "value": 144,
+      "display": "144",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM rejected_rows",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "rejected_breakdown": {
+      "value": {
+        "duplicate_natural_key": 144
+      },
+      "display": "144 duplicate rows quarantined",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY reason FROM rejected_rows",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "rejected_by_file": {
+      "value": {
+        "orders_2026-07-24.csv": 140,
+        "orders_2026-07-16.csv": 4
+      },
+      "display": "140 from 2026-07-24 + 4 from 2026-07-16",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY source_file FROM rejected_rows",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "rejected_stale": {
+      "value": 140,
+      "display": "140",
+      "unit": "",
+      "source": "S",
+      "derivation": "rejected rows from orders_2026-07-24.csv (the re-sent file)",
+      "anchor": "docs/DECISIONS.md section 3"
+    },
+    "rejected_other": {
+      "value": 4,
+      "display": "4",
+      "unit": "",
+      "source": "S",
+      "derivation": "rejected rows from every other file (within-file duplicates)",
+      "anchor": "docs/DECISIONS.md section 3"
+    },
+    "recovered_0805_net": {
+      "value": 56970.09,
+      "display": "$56,970.09",
+      "unit": "",
+      "source": "S",
+      "derivation": "SUM(line_revenue) FROM clean_orders WHERE order_date='2026-08-05'",
+      "anchor": "docs/DECISIONS.md Limitation 1"
+    },
+    "recovered_0805_gross": {
+      "value": 61474.35,
+      "display": "$61,474.35",
+      "unit": "",
+      "source": "S",
+      "derivation": "SUM(gross_revenue) FROM daily_sales WHERE order_date='2026-08-05'",
+      "anchor": "docs/DECISIONS.md Limitation 1"
+    },
+    "recovered_0805_lines": {
+      "value": 155,
+      "display": "155 order lines",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM clean_orders WHERE order_date='2026-08-05'",
+      "anchor": "data/raw/orders_2026-08-05.csv"
+    },
+    "incident_dates": {
+      "value": [
+        "2026-07-24",
+        "2026-07-28",
+        "2026-08-03",
+        "2026-08-05",
+        "2026-08-06",
+        "2026-08-07"
+      ],
+      "display": "2026-07-24 / 2026-07-28 / 2026-08-03 / 2026-08-05 / 2026-08-06 / 2026-08-07",
+      "unit": "",
+      "source": "L",
+      "derivation": "ingestion statuses + first new-ID file + currency-symbol scan + header-order diff, all restricted to the window",
+      "anchor": "data/ingestion_log.csv, data/data_quality_log.csv, data/raw/"
+    },
+    "incident_count": {
+      "value": 6,
+      "display": "6",
+      "unit": "",
+      "source": "L",
+      "derivation": "len(incident_dates)",
+      "anchor": "derived above"
+    },
+    "incident_caught_at_source": {
+      "value": 5,
+      "display": "5",
+      "unit": "",
+      "source": "L",
+      "derivation": "incidents minus the one found only in audit (the $-price day)",
+      "anchor": "docs/DECISIONS.md section 3"
+    },
+    "migration_date": {
+      "value": "2026-07-28",
+      "display": "July 28",
+      "unit": "",
+      "source": "L",
+      "derivation": "first data_quality_log row with product_col=new_product_id",
+      "anchor": "data/data_quality_log.csv"
+    },
+    "cw_total": {
+      "value": 80,
+      "display": "80",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM product_crosswalk",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_matched": {
+      "value": 72,
+      "display": "72",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY match_status",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_possible": {
+      "value": 4,
+      "display": "4",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY match_status",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_unresolved": {
+      "value": 4,
+      "display": "4",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY match_status",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_exact": {
+      "value": 51,
+      "display": "51",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY match_method",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_fuzzy": {
+      "value": 25,
+      "display": "25",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY match_method",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_none": {
+      "value": 4,
+      "display": "4",
+      "unit": "",
+      "source": "S",
+      "derivation": "GROUP BY match_method (none + below_threshold)",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_mapped": {
+      "value": 76,
+      "display": "76 of 80",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(new_product_id IS NOT NULL)",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_review": {
+      "value": 18,
+      "display": "18",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(needs_review = 1)",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_review_split": {
+      "value": [
+        10,
+        4,
+        4
+      ],
+      "display": "10 medium-confidence, 4 too-close-to-call, 4 no match",
+      "unit": "",
+      "source": "S",
+      "derivation": "needs_review=1 split by match_status",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_flow_unblocked": {
+      "value": 14,
+      "display": "14 of 18",
+      "unit": "",
+      "source": "S",
+      "derivation": "flagged rows that still carry a new_product_id",
+      "anchor": "docs/DECISIONS.md Limitations"
+    },
+    "cw_integrity": {
+      "value": [
+        76,
+        76
+      ],
+      "display": "76/76 unique (1:1)",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(DISTINCT new_product_id) vs COUNT(*) among mapped rows; src/crosswalk.py _validate() computes this but only prints it",
+      "anchor": "src/crosswalk.py:159-179 -- persisted here, not in the pipeline"
+    },
+    "cw_decoys": {
+      "value": [
+        "P1077",
+        "P1078",
+        "P1079",
+        "P1080"
+      ],
+      "display": "P1077, P1078, P1079, P1080",
+      "unit": "",
+      "source": "S",
+      "derivation": "product_id WHERE match_status='possible_match'",
+      "anchor": "data/reference/new_products.csv (the '... Alt' twins)"
+    },
+    "cw_unresolved_ids": {
+      "value": [
+        "P1069",
+        "P1071",
+        "P1073",
+        "P1075"
+      ],
+      "display": "P1069, P1071, P1073, P1075",
+      "unit": "",
+      "source": "S",
+      "derivation": "product_id WHERE match_status='unresolved'",
+      "anchor": "rocky_top.db@82d221e"
+    },
+    "cw_overlap": {
+      "value": [
+        0.642,
+        0.939
+      ],
+      "display": "0.642 to 0.939",
+      "unit": "",
+      "source": "S",
+      "derivation": "score range where accepted and rejected candidates overlap",
+      "anchor": "analysis/rain_analysis_output.md"
+    },
+    "cw_scores_accepted": {
+      "value": [
+        0.642,
+        0.657,
+        0.668,
+        0.756,
+        0.758,
+        0.763,
+        0.772,
+        0.784,
+        0.839,
+        0.845,
+        0.855,
+        0.856,
+        0.874,
+        0.878,
+        0.878,
+        0.88,
+        0.884,
+        0.897,
+        0.906,
+        0.909,
+        0.945,
+        0.98,
+        0.993,
+        0.994,
+        0.995
+      ],
+      "display": "25 accepted candidate scores",
+      "unit": "",
+      "source": "S",
+      "derivation": "composite scores of accepted matches (matched + possible_match)",
+      "anchor": "analysis/rain_analysis_output.md"
+    },
+    "cw_scores_rejected": {
+      "value": [
+        0.605,
+        0.81,
+        0.88,
+        0.939
+      ],
+      "display": "4 rejected candidate scores",
+      "unit": "",
+      "source": "S",
+      "derivation": "composite scores of runner-up candidates that were not accepted",
+      "anchor": "analysis/rain_analysis_output.md"
+    },
+    "cw_weakest": {
+      "value": [
+        "P1072",
+        0.657
+      ],
+      "display": "P1072 at 0.657",
+      "unit": "",
+      "source": "S",
+      "derivation": "lowest composite among accepted 'matched' rows",
+      "anchor": "analysis/rain_analysis_output.md"
+    },
+    "cw_floor": {
+      "value": 0.6,
+      "display": "0.60",
+      "unit": "",
+      "source": "const",
+      "derivation": "MIN_SCORE in src/crosswalk.py",
+      "anchor": "src/crosswalk.py:49"
+    },
+    "cw_strong_name": {
+      "value": 0.85,
+      "display": "0.85",
+      "unit": "",
+      "source": "const",
+      "derivation": "STRONG_NAME in src/crosswalk.py",
+      "anchor": "src/crosswalk.py:47"
+    },
+    "p1076_name": {
+      "value": 0.5,
+      "display": "0.50",
+      "unit": "",
+      "source": "S",
+      "derivation": "token_set_ratio(product_name, item_name)",
+      "anchor": "src/crosswalk.py"
+    },
+    "p1076_subclass": {
+      "value": 1.0,
+      "display": "1.00",
+      "unit": "",
+      "source": "S",
+      "derivation": "token_set_ratio(subcategory, class)",
+      "anchor": "src/crosswalk.py"
+    },
+    "p1076_price": {
+      "value": 0.841,
+      "display": "0.841",
+      "unit": "",
+      "source": "S",
+      "derivation": "max(0, 1 - abs(msrp - base_price)/base_price)",
+      "anchor": "src/crosswalk.py"
+    },
+    "p1076_composite": {
+      "value": 0.668,
+      "display": "0.668",
+      "unit": "",
+      "source": "S",
+      "derivation": "0.6*name + 0.2*subclass + 0.2*price",
+      "anchor": "src/crosswalk.py:61-68"
+    },
+    "p1076_margin": {
+      "value": 0.068,
+      "display": "0.068",
+      "unit": "",
+      "source": "S",
+      "derivation": "composite minus the 0.60 floor",
+      "anchor": "docs/plan.md P1076 card"
+    },
+    "mix_lines": {
+      "value": 3721,
+      "display": "3,721",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM clean_orders in window",
+      "anchor": "rain_analysis_output.md"
+    },
+    "mix_rain_lines": {
+      "value": 1568,
+      "display": "1,568",
+      "unit": "",
+      "source": "S",
+      "derivation": "order lines on rainy store-days",
+      "anchor": "rain_analysis_output.md"
+    },
+    "mix_dry_lines": {
+      "value": 2153,
+      "display": "2,153",
+      "unit": "",
+      "source": "S",
+      "derivation": "order lines on dry store-days",
+      "anchor": "rain_analysis_output.md"
+    },
+    "mix_instore": {
+      "value": [
+        61.6,
+        58.5
+      ],
+      "display": "61.6% to 58.5%",
+      "unit": "",
+      "source": "S",
+      "derivation": "in_store share of order lines, dry vs rain",
+      "anchor": "rain_analysis_output.md 7a"
+    },
+    "mix_pickup": {
+      "value": [
+        17.9,
+        21.6
+      ],
+      "display": "17.9% to 21.6%",
+      "unit": "",
+      "source": "S",
+      "derivation": "pickup share of order lines, dry vs rain",
+      "anchor": "rain_analysis_output.md 7a"
+    },
+    "mix_ship": {
+      "value": [
+        20.4,
+        19.9
+      ],
+      "display": "20.4% to 19.9%",
+      "unit": "",
+      "source": "S",
+      "derivation": "ship_from_store share of order lines, dry vs rain",
+      "anchor": "rain_analysis_output.md 7a"
+    },
+    "mix_shift_pp": {
+      "value": 3.7,
+      "display": "+3.7 points",
+      "unit": "",
+      "source": "S",
+      "derivation": "pickup share difference on the rounded shares",
+      "anchor": "rain_analysis_output.md 7a"
+    },
+    "mix_z": {
+      "value": 2.76,
+      "display": "2.76",
+      "unit": "",
+      "source": "S",
+      "derivation": "pooled two-proportion z on pickup share",
+      "anchor": "rain_analysis_output.md"
+    },
+    "mix_p": {
+      "value": 0.0058,
+      "display": "0.006",
+      "unit": "",
+      "source": "S",
+      "derivation": "two-sided p for the z above",
+      "anchor": "rain_analysis_output.md"
+    },
+    "rain_definition": {
+      "value": "precipitation_sum > 1.0mm",
+      "display": "a store-day with more than 1mm of rain",
+      "unit": "",
+      "source": "const",
+      "derivation": "strict >, store-day grain (three store-days sit at exactly 1.0mm)",
+      "anchor": "analysis/rain_analysis.py:37"
+    },
+    "lifts": {
+      "value": [
+        {
+          "threshold": 0.4,
+          "lift": 9.451744922971873,
+          "agree": 3,
+          "of": 8
+        },
+        {
+          "threshold": 1.0,
+          "lift": 13.867020780662042,
+          "agree": 6,
+          "of": 8
+        },
+        {
+          "threshold": 5.0,
+          "lift": 8.338880367358371,
+          "agree": 4,
+          "of": 8
+        },
+        {
+          "threshold": 10.0,
+          "lift": 18.92433700801346,
+          "agree": 4,
+          "of": 8
+        }
+      ],
+      "display": "0.4mm +9.5% (3/8) / 1mm +13.9% (6/8) / 5mm +8.3% (4/8) / 10mm +18.9% (4/8)",
+      "unit": "",
+      "source": "S",
+      "derivation": "median store-day revenue, rainy vs dry, at each cutoff; agreement counts stores whose own rainy median beats their dry median",
+      "anchor": "rain_analysis_output.md 7b"
+    },
+    "lift_0_4": {
+      "value": [
+        9.5,
+        3,
+        8
+      ],
+      "display": "+9.5% (3 of 8 stores)",
+      "unit": "",
+      "source": "S",
+      "derivation": "median lift at >0.4mm",
+      "anchor": "rain_analysis_output.md 7b"
+    },
+    "lift_1": {
+      "value": [
+        13.9,
+        6,
+        8
+      ],
+      "display": "+13.9% (6 of 8 stores)",
+      "unit": "",
+      "source": "S",
+      "derivation": "median lift at >1mm",
+      "anchor": "rain_analysis_output.md 7b"
+    },
+    "lift_5": {
+      "value": [
+        8.3,
+        4,
+        8
+      ],
+      "display": "+8.3% (4 of 8 stores)",
+      "unit": "",
+      "source": "S",
+      "derivation": "median lift at >5mm",
+      "anchor": "rain_analysis_output.md 7b"
+    },
+    "lift_10": {
+      "value": [
+        18.9,
+        4,
+        8
+      ],
+      "display": "+18.9% (4 of 8 stores)",
+      "unit": "",
+      "source": "S",
+      "derivation": "median lift at >10mm",
+      "anchor": "rain_analysis_output.md 7b"
+    },
+    "lift_headline": {
+      "value": 13.9,
+      "display": "+14%",
+      "unit": "",
+      "source": "S",
+      "derivation": "the 1mm lift, the claim that failed sensitivity",
+      "anchor": "rain_analysis_output.md 7b"
+    },
+    "store_mix": {
+      "value": [
+        {
+          "store": "S001",
+          "rain_days": 25,
+          "days": 29,
+          "share": 86.20689655172413,
+          "median_revenue": 6672.79
+        },
+        {
+          "store": "S002",
+          "rain_days": 21,
+          "days": 29,
+          "share": 72.41379310344827,
+          "median_revenue": 5825.17
+        },
+        {
+          "store": "S003",
+          "rain_days": 9,
+          "days": 29,
+          "share": 31.03448275862069,
+          "median_revenue": 6419.889999999999
+        },
+        {
+          "store": "S004",
+          "rain_days": 6,
+          "days": 29,
+          "share": 20.689655172413794,
+          "median_revenue": 6346.9
+        },
+        {
+          "store": "S005",
+          "rain_days": 12,
+          "days": 29,
+          "share": 41.37931034482759,
+          "median_revenue": 4798.87
+        },
+        {
+          "store": "S006",
+          "rain_days": 4,
+          "days": 29,
+          "share": 13.793103448275861,
+          "median_revenue": 4713.51
+        },
+        {
+          "store": "S007",
+          "rain_days": 12,
+          "days": 29,
+          "share": 41.37931034482759,
+          "median_revenue": 4604.1
+        },
+        {
+          "store": "S008",
+          "rain_days": 5,
+          "days": 29,
+          "share": 17.24137931034483,
+          "median_revenue": 5527.57
+        }
+      ],
+      "display": "S001 86% $6,673 / S002 72% $5,825 / S003 31% $6,420 / S004 21% $6,347 / S005 41% $4,799 / S006 14% $4,714 / S007 41% $4,604 / S008 17% $5,528",
+      "unit": "",
+      "source": "S",
+      "derivation": "rain-day share and median daily revenue per store",
+      "anchor": "rain_analysis_output.md"
+    },
+    "storemix_rainiest": {
+      "value": [
+        "S001",
+        86,
+        6673
+      ],
+      "display": "S001: 86% rainy days, $6,673 median day",
+      "unit": "",
+      "source": "S",
+      "derivation": "store with the highest rain-day share",
+      "anchor": "rain_analysis_output.md"
+    },
+    "storemix_driest": {
+      "value": [
+        "S006",
+        14,
+        4714
+      ],
+      "display": "S006: 14% rainy days, $4,714 median day",
+      "unit": "",
+      "source": "S",
+      "derivation": "store with the lowest rain-day share",
+      "anchor": "rain_analysis_output.md"
+    },
+    "storemix_spearman": {
+      "value": [
+        0.359,
+        0.38
+      ],
+      "display": "rho = 0.36 (p = 0.38, n = 8)",
+      "unit": "",
+      "source": "S",
+      "derivation": "Spearman, rain-day share vs median daily revenue across stores",
+      "anchor": "rain_analysis_output.md"
+    },
+    "tests_total": {
+      "value": 16,
+      "display": "16",
+      "unit": "",
+      "source": "S",
+      "derivation": "8 stores x 2 weather variables",
+      "anchor": "rain_analysis_output.md"
+    },
+    "tests_hits": {
+      "value": 1,
+      "display": "1",
+      "unit": "",
+      "source": "S",
+      "derivation": "tests significant at p < .05",
+      "anchor": "rain_analysis_output.md"
+    },
+    "tests_hit_detail": {
+      "value": [
+        "S001",
+        "temp_max",
+        -0.43,
+        0.021
+      ],
+      "display": "S001 vs temperature: rho = -0.43, p = 0.021",
+      "unit": "",
+      "source": "S",
+      "derivation": "the single significant test",
+      "anchor": "rain_analysis_output.md"
+    },
+    "tests_table": {
+      "value": [
+        {
+          "store": "S001",
+          "rho_temp": -0.4257366307973307,
+          "p_temp": 0.021300489116145262,
+          "rho_precip": 0.29469017658912,
+          "p_precip": 0.12070039248840066
+        },
+        {
+          "store": "S002",
+          "rho_temp": 0.21676958525702208,
+          "p_temp": 0.2586928329438786,
+          "rho_precip": -0.19250683103954852,
+          "p_precip": 0.3170790137093923
+        },
+        {
+          "store": "S003",
+          "rho_temp": -0.202562863438602,
+          "p_temp": 0.29196278630437655,
+          "rho_precip": 0.20458861329175,
+          "p_precip": 0.2870603580203378
+        },
+        {
+          "store": "S004",
+          "rho_temp": -0.11986692493637634,
+          "p_temp": 0.5356866304890373,
+          "rho_precip": 0.286007705129706,
+          "p_precip": 0.1325631841719127
+        },
+        {
+          "store": "S005",
+          "rho_temp": -0.07884686999039998,
+          "p_temp": 0.6843310220743447,
+          "rho_precip": 0.12286903573781009,
+          "p_precip": 0.5254427304533642
+        },
+        {
+          "store": "S006",
+          "rho_temp": 0.07985214085038136,
+          "p_temp": 0.6805151358894601,
+          "rho_precip": -0.2498444340246265,
+          "p_precip": 0.19117365030859107
+        },
+        {
+          "store": "S007",
+          "rho_temp": -0.16405961449728257,
+          "p_temp": 0.3950973714818174,
+          "rho_precip": 0.15839239161925125,
+          "p_precip": 0.4118463193586587
+        },
+        {
+          "store": "S008",
+          "rho_temp": -0.3076733611217807,
+          "p_temp": 0.1044498142321212,
+          "rho_precip": 0.06251491338219513,
+          "p_precip": 0.7473315315283753
+        }
+      ],
+      "display": "per-store Spearman table",
+      "unit": "",
+      "source": "S",
+      "derivation": "store-day net revenue vs temp_max and precipitation_sum",
+      "anchor": "rain_analysis_output.md"
+    },
+    "boundary_days": {
+      "value": [
+        "S004 07-09",
+        "S008 07-20",
+        "S005 08-05"
+      ],
+      "display": "S004 07-09, S008 07-20, S005 08-05",
+      "unit": "",
+      "source": "S",
+      "derivation": "store-days sitting exactly on the 1.0mm cutoff",
+      "anchor": "docs/DECISIONS.md section 5"
+    },
+    "pilot_stores": {
+      "value": [
+        [
+          "S001",
+          25,
+          29
+        ],
+        [
+          "S002",
+          21,
+          29
+        ]
+      ],
+      "display": "S001 (25 of 29 days) and S002 (21 of 29 days)",
+      "unit": "",
+      "source": "S",
+      "derivation": "the two highest rain-frequency stores; both operator-invariant",
+      "anchor": "docs/DECISIONS.md section 5"
+    },
+    "np9999_revenue": {
+      "value": 930.45,
+      "display": "$930.45",
+      "unit": "",
+      "source": "S",
+      "derivation": "SUM(net_revenue) FROM daily_sales WHERE category='UNKNOWN'",
+      "anchor": "docs/DECISIONS.md section 5"
+    },
+    "np9999_lines": {
+      "value": 4,
+      "display": "4 order lines",
+      "unit": "",
+      "source": "S",
+      "derivation": "COUNT(*) FROM clean_orders WHERE product_key='NP9999'",
+      "anchor": "data/raw/orders_2026-07-30.csv"
+    },
+    "constraints_bare": {
+      "value": [
+        8,
+        10
+      ],
+      "display": "8 of 10 tables",
+      "unit": "",
+      "source": "S",
+      "derivation": "tables in sqlite_master whose live DDL carries no PK/UNIQUE/FK/NOT NULL, i.e. rebuilt bare by to_sql(if_exists='replace')",
+      "anchor": "sql/01_schema.sql vs rocky_top.db@82d221e"
+    },
+    "constraints_bare_tables": {
+      "value": [
+        "clean_orders",
+        "daily_sales",
+        "new_products",
+        "product_crosswalk",
+        "products",
+        "rejected_rows",
+        "stores",
+        "weather_daily"
+      ],
+      "display": "clean_orders, daily_sales, new_products, product_crosswalk, products, rejected_rows, stores, weather_daily",
+      "unit": "",
+      "source": "S",
+      "derivation": "the affected table names",
+      "anchor": "sqlite_master"
+    },
+    "poison_meta": {
+      "value": {
+        "date": "2026-08-08",
+        "commit": "1c4884f",
+        "flags": "schema_new_product_col;nonnumeric(unit_price=5)",
+        "gate_fired": true,
+        "parse_ok": true,
+        "fixture": "C:\\Users\\conno\\AppData\\Local\\Temp\\poison_fixture_t4e8smht\\orders_2026-08-08.csv"
+      },
+      "display": "2026-08-08 at commit 1c4884f",
+      "unit": "",
+      "source": "file",
+      "derivation": "committed artifact from deck/poison_fixture.py",
+      "anchor": "deck/out/fixture/poison_fixture_meta.json"
+    },
+    "poison_gate": {
+      "value": 5,
+      "display": "5",
+      "unit": "",
+      "source": "file",
+      "derivation": "nonnumeric(unit_price=N) flag in the executed fixture log",
+      "anchor": "deck/out/fixture/poison_fixture_log.txt"
+    },
+    "live_raw_files": {
+      "value": 33,
+      "display": "33",
+      "unit": "",
+      "source": "L",
+      "derivation": "count of data/raw/orders_*.csv",
+      "anchor": "worktree at 1f7fc1a"
+    },
+    "live_ingestion_rows": {
+      "value": 34,
+      "display": "34",
+      "unit": "",
+      "source": "L",
+      "derivation": "rows in data/ingestion_log.csv",
+      "anchor": "worktree at 1f7fc1a"
+    },
+    "live_dq_rows": {
+      "value": 33,
+      "display": "33",
+      "unit": "",
+      "source": "L",
+      "derivation": "rows in data/data_quality_log.csv",
+      "anchor": "worktree at 1f7fc1a"
+    },
+    "live_last_date": {
+      "value": "2026-08-09",
+      "display": "2026-08-09",
+      "unit": "",
+      "source": "L",
+      "derivation": "MAX(order_date) FROM daily_sales",
+      "anchor": "worktree at 1f7fc1a"
+    },
+    "d_revised": {
+      "value": 5,
+      "display": "5 store-days",
+      "unit": "",
+      "source": "L",
+      "derivation": "store-days whose precipitation_sum differs between the locked snapshot and today's database (Open-Meteo revises its archive)",
+      "anchor": "docs/DECISIONS.md Limitation 8"
+    },
+    "d_flips": {
+      "value": [
+        {
+          "date": "2026-08-07",
+          "store": "S007",
+          "locked": 2.3,
+          "live": 0.9,
+          "was": "rain",
+          "now": "dry"
+        },
+        {
+          "date": "2026-08-07",
+          "store": "S008",
+          "locked": 0.4,
+          "live": 3.7,
+          "was": "dry",
+          "now": "rain"
+        }
+      ],
+      "display": "S007 08-07 2.3mm to 0.9mm (rain to dry); S008 08-07 0.4mm to 3.7mm (dry to rain)",
+      "unit": "",
+      "source": "L",
+      "derivation": "revisions that crossed the 1.0mm rain cutoff",
+      "anchor": "docs/DECISIONS.md Limitation 8"
+    },
+    "d_mix_shift": {
+      "value": 3.4,
+      "display": "+3.4 points (z = 2.59, p = 0.009)",
+      "unit": "",
+      "source": "L",
+      "derivation": "slide-7 channel shift recomputed on today's weather, same window and same conventions",
+      "anchor": "delta ledger"
+    },
+    "d_lifts": {
+      "value": [
+        {
+          "threshold": 0.4,
+          "lift": 9.902211513142479,
+          "agree": 4,
+          "of": 8
+        },
+        {
+          "threshold": 1.0,
+          "lift": 13.867020780662042,
+          "agree": 5,
+          "of": 8
+        },
+        {
+          "threshold": 5.0,
+          "lift": 8.338880367358371,
+          "agree": 4,
+          "of": 8
+        },
+        {
+          "threshold": 10.0,
+          "lift": 18.92433700801346,
+          "agree": 4,
+          "of": 8
+        }
+      ],
+      "display": "0.4mm +9.9% (4/8) / 1mm +13.9% (5/8) / 5mm +8.3% (4/8) / 10mm +18.9% (4/8)",
+      "unit": "",
+      "source": "L",
+      "derivation": "slide-8 threshold table recomputed on today's weather",
+      "anchor": "delta ledger"
+    },
+    "d_share_s007": {
+      "value": [
+        12,
+        11,
+        29
+      ],
+      "display": "S007: 12/29 rainy days locked, 11/29 today",
+      "unit": "",
+      "source": "L",
+      "derivation": "per-store rain-day count, locked vs live",
+      "anchor": "analysis/rain_analysis.py:5-8"
+    },
+    "d_share_s008": {
+      "value": [
+        5,
+        6,
+        29
+      ],
+      "display": "S008: 5/29 rainy days locked, 6/29 today",
+      "unit": "",
+      "source": "L",
+      "derivation": "per-store rain-day count, locked vs live",
+      "anchor": "analysis/rain_analysis.py:5-8"
+    },
+    "invariants_checked": {
+      "value": [
+        "net revenue",
+        "clean_orders rows",
+        "daily_sales rows",
+        "crosswalk matched",
+        "08-05 recovery"
+      ],
+      "display": "5 figures identical in the locked snapshot and today's database",
+      "unit": "",
+      "source": "both",
+      "derivation": "window-filtered equality checks run at every facts build",
+      "anchor": "deck_v2/build_facts.py"
+    }
+  }
+}

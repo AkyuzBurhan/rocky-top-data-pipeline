@@ -1,0 +1,4 @@
+# The locked snapshot is reproducible from git; no need to commit 1.2 MB twice.
+#   git show 82d221e:rocky_top.db > deck_v2/assets/locked_snapshot.db
+# (build_facts.py extracts it automatically.)
+assets/locked_snapshot.db
