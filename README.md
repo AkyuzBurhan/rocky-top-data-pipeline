@@ -99,6 +99,10 @@ table is refreshed from that CSV on every `load_raw` run.
 
 ## After the course
 
+The daily capture cron stays live through grading week by decision, while the
+analysis window is locked at 2026-08-07. The live dashboard reads the full table,
+so it will show figures past the deck's window by design.
+
 Disable the daily GitHub Action in `.github/workflows/daily_capture.yml`. It will
 otherwise keep committing to this repo indefinitely.
 
