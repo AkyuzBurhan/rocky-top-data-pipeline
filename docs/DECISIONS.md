@@ -87,25 +87,26 @@ load/rebuild the tables.
 
 ### Runnable proof the required tables exist
 
-`src/verify_tables.py` (run 2026-08-07, actual output):
+`src/verify_tables.py` (run 2026-08-08, actual output):
 
 ```
-OK      raw_orders           3865 rows
+OK      raw_orders           4027 rows
 OK      stores                  8 rows
 OK      products               80 rows
 OK      new_products           80 rows
-OK      ingestion_log           0 rows
+OK      ingestion_log          33 rows
 OK      product_crosswalk      80 rows
-OK      weather_daily         256 rows
+OK      weather_daily         264 rows
 OK      rejected_rows         144 rows
-OK      clean_orders         3721 rows
-OK      daily_sales          1367 rows
+OK      clean_orders         3883 rows
+OK      daily_sales          1414 rows
 PASS: all 10 required tables exist in rocky_top.db
 ```
 
-Note the `ingestion_log` **table** has 0 rows — the ingestion log is populated
-only as `data/ingestion_log.csv` (33 rows); no code inserts into the SQLite
-table. See Limitations.
+Note the `ingestion_log` **table** is a mirror, not the source of truth. The log is
+written to `data/ingestion_log.csv` (33 rows) by `helpers/logs.py`, and
+`src/load_raw.py` (`_sync_ingestion_log_table`) refreshes the SQLite table from that
+CSV on every run — which is why both show 33 rows.
 
 ### SQLite vs UTK MySQL trade-off
 
@@ -189,8 +190,8 @@ Two append-only CSV logs (written by `helpers/logs.py`):
   `data/raw/orders_2026-08-05.csv` by stripping the `$` and summing
   `unit_price * quantity`. Gross equivalent $61,474.35. The day was
   recoverable in about fifteen minutes because the bronze layer preserved
-  the original bytes. See "Verified revenue figures" at the end of this
-  document for the corrected totals.
+  the original bytes. See "Revenue, 2026-07-07 through 2026-08-07" at the end
+  of this document for the corrected totals.
 
 ### Why we decided this
 
@@ -266,8 +267,13 @@ Facts about what exists:
   `data/weather_cache/` (8 files, one per store, covering
   2026-07-07..2026-08-07), loaded to `weather_daily` (256 rows = 8 stores ×
   32 dates) by `src/weather.py`.
-- **No business-facing report, dashboard, or visuals exist in the repo.**
-  `docs/PROJECT_GUIDE.md` §6 lists "The business dashboard" as still to add.
+- **The business-facing artifact is `dashboard/app.py`,** a 598-line Streamlit
+  board added in commit `2f4aef6`. It shows KPI tiles with sparklines, revenue
+  by store and by category, weather-sensitivity correlations at the store-day
+  grain, a warning when the rain-threshold result is sensitive to where the
+  threshold is drawn, and an inventory and promotion playbook tied to the
+  channel-shift finding. Run it with
+  `uv run streamlit run dashboard/app.py`.
   See audit_gaps.md.
 
 ### Why we decided this
@@ -276,40 +282,57 @@ Facts about what exists:
 
 ## 6. Limitations & Technical Debt
 
-1. **`$`-formatted prices are not parsed (2026-08-05).** `helpers/dq.py` has
-   no non-numeric check, so the file passed DQ clean; `src/transform.py`
-   coerces `"$72.70"` to NaN. Result (verified in `rocky_top.db`): all 155
-   `clean_orders` rows for 2026-08-05 have NULL `unit_price`/`line_revenue`,
-   and `daily_sales` reports `net_revenue = 0.0` for the whole day. Revenue
-   for 2026-08-05 is silently missing from every analysis built on
-   `daily_sales`.
+1. **Resolved: currency-formatted prices were dropped without warning.**
+
+   On 2026-08-05 the source file delivered `unit_price` as `$157.12` instead of
+   `157.12`. `helpers/dq.py` had no check for non-numeric values, so the file
+   passed all three quality gates, and `src/transform.py` coerced the strings to
+   NaN. The result was 155 rows in `clean_orders` with NULL `unit_price` and
+   `line_revenue`, and `daily_sales` reporting $0.00 net revenue for the whole
+   day. Nothing in the pipeline flagged it. We found it by auditing the revenue
+   series by hand, not through any automated signal.
+
+   Commit `3676313` fixed both halves. `_clean_numeric_str()` in
+   `src/transform.py` strips `$` and `,` before coercion, and `_nonnumeric()` in
+   `helpers/dq.py` counts values that are present but unparseable, emitting a
+   `nonnumeric(unit_price=N)` flag. We tested the gate instead of trusting it:
+   `deck/out/fixture/poison_fixture_log.txt` shows the flag firing on 5 injected
+   currency strings and the parser recovering all 5. The day now reports
+   $56,970.09 net.
+
+   **What is still true.** `src/check_quality.py` skips any file already recorded
+   in the quality log, so the non-numeric gate has never run against our 32
+   historical files. It has only ever fired on the synthetic fixture. If an
+   earlier file carried the same formatting and we missed it, this gate would not
+   tell us.
 2. **Crosswalk integrity check is not persisted.** `_validate()`
    (`src/crosswalk.py`) confirms 1:1 assignment (76/76 unique new IDs) but
    only prints to stdout; nothing writes it to a table, log, or file, so
    there is no durable evidence of the check passing for any given build.
-3. **The `ingestion_log` SQLite table is always empty (0 rows).** The schema
-   defines it (`sql/01_schema.sql`) and `docs/PROJECT_GUIDE.md` lists it among
-   the database tables, but all logging code (`helpers/logs.py`) writes only
-   to `data/ingestion_log.csv`. Documentation and schema overstate what the
-   database contains.
-4. **The GitHub Action must be disabled after the course ends.**
-   `.github/workflows/daily_capture.yml` runs on a daily cron with
-   `contents: write` permission and pushes two commits per day. Once the
-   course source feed is retired it will 404 daily (as on 2026-08-06) and
-   keep committing log rows forever unless the workflow is disabled.
-5. **SQLite is single-user and the UTK team DB goes stale.** No
+3. **Two capture crons must be disabled after the course ends.**
+
+   This repo carries one workflow, `.github/workflows/daily_capture.yml`, on a
+   daily cron at 13:00 UTC. The predecessor repo,
+   `jdyess-cell/BZAN-545-Final-Project`, carries its own `Collect Daily Orders`
+   cron that was never disabled when we consolidated on 2026-08-03. It has been
+   firing and failing daily since. Two repos, one workflow each, both on the
+   shutdown list.
+
+   [UNVERIFIED] The predecessor's run history cannot be checked from this repo's
+   contents. This rests on the migration timeline in §1 and on `README.md`.
+4. **SQLite is single-user and the UTK team DB goes stale.** No
    `publish_to_utk.py` exists yet, so final tables live only in the committed
    `rocky_top.db`; the team MySQL DB holds only reference tables. Multi-user
    SQL access to the finished analytics tables is therefore limited to
    whoever has the repo file.
-6. **`status=missing` is defined but never produced.** `helpers/config.py`
+5. **`status=missing` is defined but never produced.** `helpers/config.py`
    defines `STATUS_MISSING` ("no file for the expected date"), but no code
    path emits it — a day with no capture attempt leaves no log row at all
    (there is no row for a date unless capture/backfill ran).
-7. **Weather archive lag.** `src/weather.py` documents that the Open-Meteo
+6. **Weather archive lag.** `src/weather.py` documents that the Open-Meteo
    ERA5 archive lags by a few days, so the most recent dates may join as NULL
    (currently all 1,367 `daily_sales` rows do have weather).
-8. **Header-mislabel path is untested by data.** The
+7. **Header-mislabel path is untested by data.** The
    `header_mislabeled_product` flag (`helpers/dq.py`) and the
    `product_id_source` logic exist in code, but no committed raw file
    exercises them (no DQ row has `has_source_flag=1`).
@@ -334,8 +357,10 @@ quiz or assessment**, per course policy.
 - `src/verify_tables.py` was written by Claude Code from a specification we wrote,
   then reviewed line by line before committing.
 - The factual sections of this document (what happened, evidence paths, how the
-  pipeline responded) were drafted by Claude Code from repository contents. Every
-  "Why we decided this" section was written by the team.
+  pipeline responded) were drafted by Claude Code from repository contents. The
+  "Why we decided this" sections are the team's own writing, not model output. Any
+  section still blank at submission was not finished in time. We left those empty
+  rather than have a model fill them in.
 - `audit_gaps.md` is an AI-generated audit against the submission checklist.
 - `dashboard/app.py` was built with AI assistance and reviewed before merging.
 
@@ -366,18 +391,22 @@ independently of any AI-assisted work.
 
 ---
 
-## Verified revenue figures
+## Revenue, 2026-07-07 through 2026-08-07
 
-Window 2026-07-07 through 2026-08-07. All figures net unless stated.
+The window is frozen so every figure in this document and in the presentation
+is reproducible from the same data. The pipeline has kept running since, so
+the live database and the dashboard are ahead of these numbers by design.
 
 | Figure | Value | Source |
 |---|---|---|
-| Pipeline net revenue | $1,317,702.22 | `daily_sales`, reconciles to `clean_orders` |
-| 2026-08-05 recovered net | $56,970.09 | `data/raw/orders_2026-08-05.csv`, 155 rows |
-| **True net revenue** | **$1,374,672.31** | pipeline + recovered day |
-| Pipeline gross revenue | ~$1,417,583 | `daily_sales.gross_revenue` |
-| 2026-08-05 recovered gross | $61,474.35 | recovered, reverse-computed |
-| **True gross revenue** | **~$1,479,057** | pipeline + recovered day |
+| Net revenue | $1,374,672.31 | `daily_sales`, reconciles to `clean_orders.line_revenue` |
+| Gross revenue | $1,479,057.85 | `daily_sales`, before discounts |
+
+Before commit `3676313` these read $1,317,702.22 and roughly $1,417,583. The
+difference is the 2026-08-05 currency-string day described in Limitation 1.
+That day's $56,970.09 used to be a figure we recovered by hand from the raw
+file. The pipeline now produces it on its own, so no manual adjustment is left
+in the arithmetic.
 
 ### Gross vs net in this dataset
 
@@ -395,14 +424,14 @@ Any analysis built directly on the raw orders files needs to account for this.
 
 ### What the reconciliation check does and does not prove
 
-The pipeline reports `daily_sales` net revenue matching `clean_orders` line revenue
-exactly. That proves `daily_sales` aggregates `clean_orders` faithfully. It cannot
-detect loss upstream of `clean_orders`: the 2026-08-05 nulls are present on both
-sides of the comparison, so the check passes on data that is missing a full day.
+The pipeline reported `daily_sales` net revenue matching `clean_orders` line revenue
+exactly. That proved `daily_sales` aggregated `clean_orders` faithfully. It could not
+detect loss upstream of `clean_orders`: the 2026-08-05 nulls were present on both
+sides of the comparison, so the check passed on data that was missing a full day.
 
 Three separate checks passed on 2026-08-05: the missing-value check (a `$` is not a
 null), the transform (silent coercion), and the reconciliation (same nulled data on
-both sides). The gap is that none of them tested parseability.
+both sides). The gap was that none of them tested parseability.
 
 
 ---
@@ -411,11 +440,15 @@ both sides). The gap is that none of them tested parseability.
 
 `sql/01_schema.sql` declares primary keys, unique constraints, not-nulls, and
 foreign keys. `src/init_db.py` creates the tables correctly. But every table
-written by pandas uses `to_sql(..., if_exists="replace")`, which **drops the
-table and recreates it from the DataFrame schema**, discarding all constraints.
+written by pandas with `to_sql(..., if_exists="replace")` is **dropped and
+recreated from the DataFrame schema**, discarding all constraints.
 
-Verified by reading `sqlite_master` from `rocky_top.db`. Every table is a bare
-column list with pandas default types.
+Verified by reading `sqlite_master` from `rocky_top.db`: **8 of the 10 tables are
+a bare column list** with pandas default types. The two exceptions are the tables
+that are never replaced — `raw_orders`, which is appended to
+(`src/load_raw.py:106-108`), and `ingestion_log`, which is DELETE-then-appended
+(`src/load_raw.py:50-52`). Both keep the DDL `init_db.py` created. Every table
+below is one of the eight.
 
 | Declared | Line | Enforced by |
 |---|---|---|

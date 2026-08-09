@@ -42,6 +42,7 @@ helpers/             shared package (config, db, io, dq, logs, matching)
 src/                 pipeline scripts
 sql/                 schema
 dashboard/           Streamlit dashboard
+deck/                presentation build + executed fixture artifacts
 docs/                decisions, project guide, working context
 data/raw/            preserved daily orders_YYYY-MM-DD.csv files
 data/reference/      stores, products, new_products, product_crosswalk
@@ -88,14 +89,13 @@ the committed cache.
 
 Documented in full in `docs/DECISIONS.md`. The main ones:
 
-- **2026-08-05 revenue is $0 in `daily_sales`.** Prices arrived formatted as
-  `$157.12` and were coerced to NULL. Recovered value from raw: $56,970.09 net.
 - **SQLite lives in the repo**, so it is not a guaranteed single source of truth.
   Clone without pulling and you are working from stale data.
 - **The Open-Meteo archive lags by a few days**, so the most recent order dates
   may have no weather row and join as NULL.
-- **The `ingestion_log` SQL table is empty.** The authoritative log is
-  `data/ingestion_log.csv`.
+
+`data/ingestion_log.csv` is the authoritative ingestion log; the `ingestion_log` SQL
+table is refreshed from that CSV on every `load_raw` run.
 
 ## After the course
 
