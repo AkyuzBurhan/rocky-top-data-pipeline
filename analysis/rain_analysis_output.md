@@ -74,7 +74,7 @@ Rejected candidates (runner-ups in their blocks): n = 4, range 0.605 .. 0.939
 Rescoring fidelity: recomputed name_sim matches the value persisted in product_crosswalk notes on 21 of 21 matched fuzzy rows.
 
 Weakest matched accept: P1072 -> NP5070 at 0.657, clearing the 0.60 floor by 0.057. Weakest accept overall is P1079 at 0.642 (a possible_match).
-Deck exhibit P1076 component check: name 0.50 x 0.6 + subclass 1.00 x 0.2 + price 0.841 x 0.2 = composite 0.668, clearing the floor by 0.068. The components and composite check out. KNOWN DISCREPANCY: the slide-5 speaker note calls P1076 the weakest accept; by recomputed composite it is not (P1072 accepted at 0.657, and the weakest possible_match at 0.642, both sit lower). The 0.668 and 0.068 figures themselves are correct for P1076.
+Deck exhibit P1076 component check: name 0.50 x 0.6 + subclass 1.00 x 0.2 + price 0.841 x 0.2 = composite 0.668, clearing the floor by 0.068. The components and composite check out. CORRECTED in 707fce9: the slide-5 speaker note used to call P1076 the weakest accept, which the recomputed composites contradict (P1072 accepted at 0.657, and the weakest possible_match at 0.642, both sit lower). The note now says "thin accept" and claims no superlative. The 0.668 and 0.068 figures themselves are correct for P1076.
 Overlap region [0.642, 0.939] holds 20 accepted and 3 rejected candidate scores: the two populations are not cleanly separated, and no threshold splits them without trading false matches against missed ones.
 
 ## Deck figure index (as displayed on the slides)
