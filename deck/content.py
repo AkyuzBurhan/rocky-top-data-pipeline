@@ -20,6 +20,12 @@ WINDOW_NOTE = ("- If asked whether it has run since: give the run days "
 COVER_KICKER = "BZAN 545 · Rocky Top Outfitters data pipeline"
 COVER_TITLE_1 = "A process that notices"
 COVER_TITLE_2 = "when it's wrong"          # orange full stop appended
+# The business question, stated once on the cover. Deliberately digit-free
+# and ink (not orange): qa_checks.py diffs every on-slide numeric token
+# against plan.md and asserts an exact orange-mark count per slide.
+COVER_QUESTION = ("Does weather change what people buy at Rocky Top "
+                  "Outfitters, and can the pipeline that answers it be "
+                  "trusted?")
 # Jack's and James's surnames are not recoverable from the repo (DECISIONS.md
 # carries literal "[Jack: fill in]" blanks); placeholders flagged in readout.
 COVER_ROSTER = ("Connor Kersting · Jack Dyess · Burhan Akyuz · James Zhou")
@@ -214,9 +220,10 @@ S5_NOTES = [
     "- Two thresholds, two jobs: composite >= 0.60 accept vs reject; "
     "name_sim >= 0.85 high vs medium",
     "- Review queue = everything not high: 14 medium + 4 low = 18",
-    "- P1076 exhibit: weakest accept cleared the floor by 0.068 and got "
-    "flagged; thin acceptance plus automatic review is the whole design "
-    "in one product",
+    "- P1076 exhibit: a 0.50 name similarity still cleared the floor "
+    "because subclass and price carried the composite to 0.668, 0.068 "
+    "above the cut, and the match was auto-flagged for review; thin "
+    "acceptance plus automatic review is the whole design in one product",
     "- Three-threshold motif: MIN_SCORE, STRONG_NAME, and the rain cut "
     "that killed the revenue claim; one sentence on 7b, don't belabor",
     "- Handoff: 'the flag is advisory; back to that in limitations'",
@@ -226,7 +233,7 @@ S5_NOTES = [
     "closeness was 0.841, putting the composite at 0.668. Its block had "
     "one candidate. And because name similarity was under the 0.85 "
     "confidence threshold, it came out medium and landed in the review "
-    "queue: the system flagged its own weakest accept.'",
+    "queue: the system flagged its own thin accept.'",
     "72 vs 76, say it without hesitating: 72 = status matched (51 + 11 + "
     "10); 76 = anything with a new_product_id (72 + the 4 possible_match)",
     "Q3 (anyone) · 72 matched but 18 need review, which is it? Orthogonal "
@@ -349,7 +356,7 @@ S8_NOTES = [
     "capacity when rain is in the forecast; the demand doesn't vanish in "
     "the rain, it moves channels') and app.py:565-566 ('the reliable "
     "lever is channel readiness')",
-    "- Pilot stores by rain-day frequency (precip >= 1mm, store-day "
+    "- Pilot stores by rain-day frequency (precip > 1.0mm, store-day "
     "grain): S001 86.2% (25/29 days), S002 72.4% (21/29)",
     "- 2pp is pre-registered before the pilot runs: below the observed "
     "3.7pp to allow attenuation, above noise; wait time is the guardrail "
