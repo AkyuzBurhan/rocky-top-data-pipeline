@@ -337,6 +337,16 @@ The window is frozen at 2026-07-07 through 2026-08-07. The pipeline runs on a da
 
 We do not claim rain increases revenue. At a 1mm threshold, mean store-day net revenue ran 10% higher on rainy days, with 6 of 8 stores agreeing. At 10mm the mean gap widened to 18% (the deck's 18.9% is the same comparison on medians), but agreement, counted on per-store median lifts as on slide 7b, fell to 4 of 8 stores, a coin flip. The point estimate moved with the cutoff and the cross-store consistency fell apart with it. We dropped the claim rather than report the threshold that flattered it. dashboard/app.py:516-525 computes both thresholds and renders the warning, so the fragility is visible on the board instead of buried here.
 
+The board and the slides will not print the same numbers, and that is a definition difference rather than a disagreement. The board reads the live table and uses `precipitation_sum >= 1.0mm` with means; slides 7a and 7b use strict `> 1.0mm` with medians over the window frozen at 07-07 to 08-07. Three store-days sit at exactly 1.0mm (S004 07-09, S008 07-20, S005 08-05), so the operator alone moves the rain set. Side by side:
+
+| Figure | Slides (locked, strict `>`, medians) | Board (live, `>=`, means) |
+|---|---|---|
+| Pickup share shift | 17.9 to 21.6, +3.7pp | 17.8 to 21.6, +3.8pp |
+| Revenue lift at 1mm | +13.9%, 6 of 8 stores | +8.2%, 6 of 8 stores |
+| Revenue lift at 10mm | +18.9%, 4 of 8 stores | +16.6%, 3 of 8 stores |
+
+The pattern is the argument. The finding we report survives both definitions and both windows almost unchanged. The finding we killed moves by 5 to 6 points and loses a store of agreement depending on which definition you pick, which is the same instability that got it killed. The board now carries a note saying which definition it uses and why it differs, so anyone comparing the two screens gets the answer without asking.
+
 We do claim rain shifts channel mix. Figures are computed on the analysis window frozen at commit `82d221e`, with rain defined as `precipitation_sum > 1.0mm` at store-day grain, matching the deck. Across 3,721 order lines, 1,568 on rainy store-days and 2,153 on dry, pickup share rises from 17.9% to 21.6%, a shift of +3.7 points (z ≈ 2.8, p ≈ .006). In-store falls 3.1 points, ship-from-store 0.5. The derivation is committed at `analysis/rain_analysis_output.md`. The direction holds at every cutoff tested from 0.4 to 10mm; significance does not survive past 5mm (p = .10 at 5mm, p = .46 at 10mm), as the rainy line count thins. Customers change how they buy, not whether they buy.
 
 Sample size is the limit worth stating. 1,367 daily_sales rows look like a lot, but weather varies by store and date, not by category, so 232 independent store-day observations sit behind every weather result here. Eight stores, 29 dates. One unusual week is a meaningful fraction of that.
