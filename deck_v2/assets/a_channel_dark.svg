@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-08-09T15:20:19.640797</dc:date>
+    <dc:date>2026-08-09T18:10:15.453561</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -42,7 +42,7 @@ z
    <g id="line2d_1">
     <path d="M 346.357403 199.8 
 L 346.357403 5.76 
-" clip-path="url(#p620da66f18)" style="fill: none; stroke: #7e8695; stroke-opacity: 0.55; stroke-width: 1.4; stroke-linecap: square"/>
+" clip-path="url(#p66f4a56aab)" style="fill: none; stroke: #7e8695; stroke-opacity: 0.55; stroke-width: 1.4; stroke-linecap: square"/>
    </g>
    <g id="matplotlib.axis_1"/>
    <g id="matplotlib.axis_2"/>
@@ -52,7 +52,7 @@ L 491.292468 72.362919
 L 491.292468 49.287892 
 L 346.357403 49.287892 
 z
-" clip-path="url(#p620da66f18)" style="fill: #ff8200"/>
+" clip-path="url(#p66f4a56aab)" style="fill: #ff8200"/>
    </g>
    <g id="patch_4">
     <path d="M 346.357403 124.806162 
@@ -60,7 +60,7 @@ L 326.771583 124.806162
 L 326.771583 101.731135 
 L 346.357403 101.731135 
 z
-" clip-path="url(#p620da66f18)" style="fill: #7e8695; opacity: 0.4"/>
+" clip-path="url(#p66f4a56aab)" style="fill: #7e8695; opacity: 0.4"/>
    </g>
    <g id="patch_5">
     <path d="M 346.357403 177.249405 
@@ -68,7 +68,7 @@ L 224.925321 177.249405
 L 224.925321 154.174378 
 L 346.357403 154.174378 
 z
-" clip-path="url(#p620da66f18)" style="fill: #7e8695; opacity: 0.4"/>
+" clip-path="url(#p66f4a56aab)" style="fill: #7e8695; opacity: 0.4"/>
    </g>
    <g id="text_1">
     <!-- Pickup -->
@@ -1456,7 +1456,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p620da66f18">
+  <clipPath id="p66f4a56aab">
    <rect x="5.76" y="5.76" width="558" height="194.04"/>
   </clipPath>
  </defs>

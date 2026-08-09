@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-08-09T15:20:19.385843</dc:date>
+    <dc:date>2026-08-09T18:10:15.215995</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -47,7 +47,7 @@ L 114.304286 183.60853
 L 114.304286 116.165254 
 L 48.672857 116.165254 
 z
-" clip-path="url(#p5cfb268dd1)" style="fill: #8e877a; opacity: 0.45"/>
+" clip-path="url(#p4e1bda80ce)" style="fill: #7a7367; opacity: 0.45"/>
    </g>
    <g id="patch_4">
     <path d="M 174.887143 183.60853 
@@ -55,7 +55,7 @@ L 240.518571 183.60853
 L 240.518571 84.659889 
 L 174.887143 84.659889 
 z
-" clip-path="url(#p5cfb268dd1)" style="fill: #ff8200"/>
+" clip-path="url(#p4e1bda80ce)" style="fill: #ff8200"/>
    </g>
    <g id="patch_5">
     <path d="M 301.101429 183.60853 
@@ -63,7 +63,7 @@ L 366.732857 183.60853
 L 366.732857 124.10614 
 L 301.101429 124.10614 
 z
-" clip-path="url(#p5cfb268dd1)" style="fill: #8e877a; opacity: 0.45"/>
+" clip-path="url(#p4e1bda80ce)" style="fill: #7a7367; opacity: 0.45"/>
    </g>
    <g id="patch_6">
     <path d="M 427.315714 183.60853 
@@ -71,16 +71,16 @@ L 492.947143 183.60853
 L 492.947143 48.573222 
 L 427.315714 48.573222 
 z
-" clip-path="url(#p5cfb268dd1)" style="fill: #8e877a; opacity: 0.45"/>
+" clip-path="url(#p4e1bda80ce)" style="fill: #7a7367; opacity: 0.45"/>
    </g>
    <g id="line2d_1">
     <path d="M 5.76 183.60853 
 L 535.86 183.60853 
-" clip-path="url(#p5cfb268dd1)" style="fill: none; stroke: #8e877a; stroke-opacity: 0.5; stroke-linecap: square"/>
+" clip-path="url(#p4e1bda80ce)" style="fill: none; stroke: #7a7367; stroke-opacity: 0.5; stroke-linecap: square"/>
    </g>
    <g id="text_1">
     <!-- +9.5% -->
-    <g style="fill: #8e877a" transform="translate(63.494196 109.74327) scale(0.12 -0.12)">
+    <g style="fill: #7a7367" transform="translate(63.494196 109.74327) scale(0.12 -0.12)">
      <defs>
       <path id="IBMPlexSans-91" d="M 1677 397 
 L 1677 1734 
@@ -238,7 +238,7 @@ z
    </g>
    <g id="text_2">
     <!-- 0.4mm -->
-    <g style="fill: #8e877a" transform="translate(63.789743 195.025389) scale(0.11 -0.11)">
+    <g style="fill: #7a7367" transform="translate(63.789743 195.025389) scale(0.11 -0.11)">
      <defs>
       <path id="IBMPlexSans-3b" d="M 1920 -77 
 Q 1120 -77 752 531 
@@ -339,7 +339,7 @@ z
    </g>
    <g id="text_3">
     <!-- 3 of 8 stores agree -->
-    <g style="fill: #8e877a" transform="translate(41.925525 207.869356) scale(0.095 -0.095)">
+    <g style="fill: #7a7367" transform="translate(41.925525 207.869356) scale(0.095 -0.095)">
      <defs>
       <path id="IBMPlexSans-40" d="M 1670 2573 
 Q 2125 2573 2352 2781 
@@ -968,7 +968,7 @@ z
    </g>
    <g id="text_6">
     <!-- 6 of 8 stores agree -->
-    <g style="fill: #8e877a" transform="translate(168.13981 207.869356) scale(0.095 -0.095)">
+    <g style="fill: #7a7367" transform="translate(168.13981 207.869356) scale(0.095 -0.095)">
      <defs>
       <path id="IBMPlexSans-43" d="M 1926 -77 
 Q 1581 -77 1302 41 
@@ -1033,7 +1033,7 @@ z
    </g>
    <g id="text_7">
     <!-- +8.3% -->
-    <g style="fill: #8e877a" transform="translate(315.922768 117.684157) scale(0.12 -0.12)">
+    <g style="fill: #7a7367" transform="translate(315.922768 117.684157) scale(0.12 -0.12)">
      <use xlink:href="#IBMPlexSans-91"/>
      <use xlink:href="#IBMPlexSans-45" transform="translate(60 0)"/>
      <use xlink:href="#IBMPlexSans-5d" transform="translate(120 0)"/>
@@ -1043,7 +1043,7 @@ z
    </g>
    <g id="text_8">
     <!-- 5mm -->
-    <g style="fill: #8e877a" transform="translate(321.014487 195.025389) scale(0.11 -0.11)">
+    <g style="fill: #7a7367" transform="translate(321.014487 195.025389) scale(0.11 -0.11)">
      <use xlink:href="#IBMPlexSans-42"/>
      <use xlink:href="#IBMPlexSans-13" transform="translate(60 0)"/>
      <use xlink:href="#IBMPlexSans-13" transform="translate(147.296875 0)"/>
@@ -1051,7 +1051,7 @@ z
    </g>
    <g id="text_9">
     <!-- 4 of 8 stores agree -->
-    <g style="fill: #8e877a" transform="translate(294.354096 207.869356) scale(0.095 -0.095)">
+    <g style="fill: #7a7367" transform="translate(294.354096 207.869356) scale(0.095 -0.095)">
      <use xlink:href="#IBMPlexSans-41"/>
      <use xlink:href="#IBMPlexSans-3" transform="translate(60 0)"/>
      <use xlink:href="#IBMPlexSans-15" transform="translate(83.59375 0)"/>
@@ -1075,7 +1075,7 @@ z
    </g>
    <g id="text_10">
     <!-- +18.9% -->
-    <g style="fill: #8e877a" transform="translate(438.537054 42.151239) scale(0.12 -0.12)">
+    <g style="fill: #7a7367" transform="translate(438.537054 42.151239) scale(0.12 -0.12)">
      <defs>
       <path id="IBMPlexSans-3e" d="M 563 0 
 L 563 474 
@@ -1103,7 +1103,7 @@ z
    </g>
    <g id="text_11">
     <!-- 10mm -->
-    <g style="fill: #8e877a" transform="translate(443.928772 195.025389) scale(0.11 -0.11)">
+    <g style="fill: #7a7367" transform="translate(443.928772 195.025389) scale(0.11 -0.11)">
      <use xlink:href="#IBMPlexSans-3e"/>
      <use xlink:href="#IBMPlexSans-3b" transform="translate(60 0)"/>
      <use xlink:href="#IBMPlexSans-13" transform="translate(120 0)"/>
@@ -1112,7 +1112,7 @@ z
    </g>
    <g id="text_12">
     <!-- 4 of 8 stores agree -->
-    <g style="fill: #8e877a" transform="translate(420.568382 207.869356) scale(0.095 -0.095)">
+    <g style="fill: #7a7367" transform="translate(420.568382 207.869356) scale(0.095 -0.095)">
      <use xlink:href="#IBMPlexSans-41"/>
      <use xlink:href="#IBMPlexSans-3" transform="translate(60 0)"/>
      <use xlink:href="#IBMPlexSans-15" transform="translate(83.59375 0)"/>
@@ -1136,7 +1136,7 @@ z
    </g>
    <g id="text_13">
     <!-- same data, four defensible definitions of “a rainy day” -->
-    <g style="fill: #8e877a" transform="translate(81.488571 17.176859) scale(0.11 -0.11)">
+    <g style="fill: #7a7367" transform="translate(81.488571 17.176859) scale(0.11 -0.11)">
      <defs>
       <path id="IBMPlexSans-8" d="M 2656 538 
 L 2630 538 
@@ -1477,7 +1477,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p5cfb268dd1">
+  <clipPath id="p4e1bda80ce">
    <rect x="5.76" y="5.76" width="530.1" height="210.672"/>
   </clipPath>
  </defs>

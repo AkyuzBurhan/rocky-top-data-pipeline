@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-08-09T15:20:19.321806</dc:date>
+    <dc:date>2026-08-09T18:10:15.156099</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -42,7 +42,7 @@ z
    <g id="line2d_1">
     <path d="M 346.357403 199.8 
 L 346.357403 5.76 
-" clip-path="url(#p1fbc34df9b)" style="fill: none; stroke: #8e877a; stroke-opacity: 0.55; stroke-width: 1.4; stroke-linecap: square"/>
+" clip-path="url(#p3d7be7ff14)" style="fill: none; stroke: #7a7367; stroke-opacity: 0.55; stroke-width: 1.4; stroke-linecap: square"/>
    </g>
    <g id="matplotlib.axis_1"/>
    <g id="matplotlib.axis_2"/>
@@ -52,7 +52,7 @@ L 491.292468 72.362919
 L 491.292468 49.287892 
 L 346.357403 49.287892 
 z
-" clip-path="url(#p1fbc34df9b)" style="fill: #ff8200"/>
+" clip-path="url(#p3d7be7ff14)" style="fill: #ff8200"/>
    </g>
    <g id="patch_4">
     <path d="M 346.357403 124.806162 
@@ -60,7 +60,7 @@ L 326.771583 124.806162
 L 326.771583 101.731135 
 L 346.357403 101.731135 
 z
-" clip-path="url(#p1fbc34df9b)" style="fill: #8e877a; opacity: 0.4"/>
+" clip-path="url(#p3d7be7ff14)" style="fill: #7a7367; opacity: 0.4"/>
    </g>
    <g id="patch_5">
     <path d="M 346.357403 177.249405 
@@ -68,7 +68,7 @@ L 224.925321 177.249405
 L 224.925321 154.174378 
 L 346.357403 154.174378 
 z
-" clip-path="url(#p1fbc34df9b)" style="fill: #8e877a; opacity: 0.4"/>
+" clip-path="url(#p3d7be7ff14)" style="fill: #7a7367; opacity: 0.4"/>
    </g>
    <g id="text_1">
     <!-- Pickup -->
@@ -387,7 +387,7 @@ z
    </g>
    <g id="text_3">
     <!-- 17.9%  →  21.6% -->
-    <g style="fill: #8e877a" transform="translate(77.424367 81.456108) scale(0.1 -0.1)">
+    <g style="fill: #7a7367" transform="translate(77.424367 81.456108) scale(0.1 -0.1)">
      <defs>
       <path id="IBMPlexSans-3e" d="M 563 0 
 L 563 474 
@@ -620,7 +620,7 @@ z
    </g>
    <g id="text_4">
     <!-- Ship from store -->
-    <g style="fill: #8e877a" transform="translate(69.195461 116.768649) scale(0.125 -0.125)">
+    <g style="fill: #7a7367" transform="translate(69.195461 116.768649) scale(0.125 -0.125)">
      <defs>
       <path id="IBMPlexSans-33" d="M 1850 -77 
 Q 1306 -77 922 131 
@@ -952,7 +952,7 @@ z
    </g>
    <g id="text_5">
     <!-- -0.5 pts -->
-    <g style="fill: #8e877a" transform="translate(277.60626 116.488649) scale(0.115 -0.115)">
+    <g style="fill: #7a7367" transform="translate(277.60626 116.488649) scale(0.115 -0.115)">
      <defs>
       <path id="IBMPlexSans-55" d="M 442 1670 
 L 442 2221 
@@ -1041,7 +1041,7 @@ z
    </g>
    <g id="text_6">
     <!-- 20.4%  →  19.9% -->
-    <g style="fill: #8e877a" transform="translate(77.424367 133.899351) scale(0.1 -0.1)">
+    <g style="fill: #7a7367" transform="translate(77.424367 133.899351) scale(0.1 -0.1)">
      <defs>
       <path id="IBMPlexSans-41" d="M 2400 0 
 L 2400 877 
@@ -1083,7 +1083,7 @@ z
    </g>
    <g id="text_7">
     <!-- In-store -->
-    <g style="fill: #8e877a" transform="translate(109.230617 169.211892) scale(0.125 -0.125)">
+    <g style="fill: #7a7367" transform="translate(109.230617 169.211892) scale(0.125 -0.125)">
      <defs>
       <path id="IBMPlexSans-29" d="M 384 0 
 L 384 448 
@@ -1134,7 +1134,7 @@ z
    </g>
    <g id="text_8">
     <!-- -3.1 pts -->
-    <g style="fill: #8e877a" transform="translate(175.759999 168.931892) scale(0.115 -0.115)">
+    <g style="fill: #7a7367" transform="translate(175.759999 168.931892) scale(0.115 -0.115)">
      <defs>
       <path id="IBMPlexSans-40" d="M 1670 2573 
 Q 2125 2573 2352 2781 
@@ -1198,7 +1198,7 @@ z
    </g>
    <g id="text_9">
     <!-- 61.6%  →  58.5% -->
-    <g style="fill: #8e877a" transform="translate(77.424367 186.342595) scale(0.1 -0.1)">
+    <g style="fill: #7a7367" transform="translate(77.424367 186.342595) scale(0.1 -0.1)">
      <defs>
       <path id="IBMPlexSans-45" d="M 1920 -77 
 Q 1536 -77 1248 22 
@@ -1269,7 +1269,7 @@ z
    </g>
    <g id="text_10">
     <!--   more on rainy days  → -->
-    <g style="fill: #8e877a" transform="translate(346.357403 22.017405) scale(0.105 -0.105)">
+    <g style="fill: #7a7367" transform="translate(346.357403 22.017405) scale(0.105 -0.105)">
      <defs>
       <path id="IBMPlexSans-4" d="M 2944 0 
 Q 2656 0 2531 153 
@@ -1396,7 +1396,7 @@ z
    </g>
    <g id="text_11">
     <!-- ←  less on rainy days   -->
-    <g style="fill: #8e877a" transform="translate(244.655059 22.017405) scale(0.105 -0.105)">
+    <g style="fill: #7a7367" transform="translate(244.655059 22.017405) scale(0.105 -0.105)">
      <defs>
       <path id="IBMPlexSans-379" d="M 1677 3558 
 L 1990 3251 
@@ -1456,7 +1456,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p1fbc34df9b">
+  <clipPath id="p3d7be7ff14">
    <rect x="5.76" y="5.76" width="558" height="194.04"/>
   </clipPath>
  </defs>

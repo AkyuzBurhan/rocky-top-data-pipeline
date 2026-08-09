@@ -631,3 +631,17 @@ That is a strong answer. Guessing is the only way to actually lose these points.
 | Confound | A second explanation you can't rule out |
 | Sensitivity test | Re-running with a definition nudged, to see if the answer survives |
 | Threshold | A line we chose; not a fact of nature |
+
+---
+
+## Addendum — say-aloud lines added after final review
+
+Two spoken lines only. Nothing on the slides changed for either one.
+
+1. **Jack, on slide 02:** “We considered enforcing our data rules inside the
+   database itself; we rejected it because our automation can't reach the
+   campus database server, so the rules live in Python instead — that
+   trade-off comes back on slide 10.”
+
+2. **Jack, on slide 04b:** “This is a receipt, not code — the log of the test
+   firing, saved and committed.”

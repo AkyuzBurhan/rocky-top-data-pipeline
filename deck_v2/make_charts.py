@@ -32,7 +32,9 @@ FACTS = json.loads((HERE / "facts.json").read_text(encoding="utf-8"))["facts"]
 # Palette is the deck's, so charts sit on the bone paper as native elements
 # rather than as pasted-in images. Warm greys, one signal colour.
 ORANGE = "#FF8200"        # UT Knoxville orange, carried over from the v1 deck
-MUTED_L, INK_L = "#8E877A", "#16181D"     # warm grey / ink on bone paper
+# MUTED_L mirrors the --muted CSS variable in deck.template.html; if one moves,
+# move the other or the chart greys drift away from the deck chrome.
+MUTED_L, INK_L = "#7A7367", "#16181D"     # warm grey / ink on bone paper
 MUTED_D, INK_D = "#7e8695", "#f2f4f8"     # kept for a dark theme if ever needed
 
 THEMES = {"light": (INK_L, MUTED_L), "dark": (INK_D, MUTED_D)}
@@ -228,7 +230,7 @@ def chart_scores(theme):
     lo, hi = val("cw_overlap")
 
     fig, ax = new_fig(9.5, 3.0, ink)
-    ax.axvspan(lo, hi, color=muted, alpha=.13, zorder=1)
+    ax.axvspan(lo, hi, color=muted, alpha=.30, zorder=1)
     ax.axvline(floor, color=ink, lw=1.5, ls=(0, (4, 3)), zorder=2, alpha=.75)
 
     ax.scatter(acc, [1] * len(acc), s=95, color=ORANGE, zorder=3, alpha=.85)
@@ -243,7 +245,7 @@ def chart_scores(theme):
     ax.text(floor - .008, 1.62, f"our cut-off, {floor:.2f}", ha="right",
             va="center", fontsize=10.5, color=ink, fontfamily=FONT)
     ax.text((lo + hi) / 2, -.62, f"they overlap here: {lo:.2f} to {hi:.2f}",
-            ha="center", fontsize=10.5, color=muted, fontfamily=FONT)
+            ha="center", fontsize=10.5, color=ink, fontfamily=FONT)
     # the cut-off label anchors the left end and the overlap caption carries
     # the scale, so axis ticks here would only collide with the dashed line
     ax.set_xlim(min(acc + rej) - .17, max(acc + rej) + .03)
@@ -264,7 +266,7 @@ def chart_tests(theme):
             hit = r[key] < 0.05
             ax.scatter([i], [1 - j], s=560, marker="s", zorder=2,
                        color=ORANGE if hit else muted,
-                       alpha=1 if hit else .22)
+                       alpha=1 if hit else .85)
             if hit:
                 ax.annotate(f"p = {r[key]:.3f}", (i, 1 - j), xytext=(0, 26),
                             textcoords="offset points", ha="center",

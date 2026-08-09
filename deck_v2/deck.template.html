@@ -48,7 +48,7 @@ img, video, canvas, svg { max-width:100%; max-height:100%; }
   --slide-bg:#F4F1EA;          /* bone paper */
   --ink:#16181D;
   --soft:#4A4F58;
-  --muted:#9A9385;
+  --muted:#7A7367;             /* keep in sync with MUTED_L in make_charts.py */
   --rule:#DAD4C6;
   --signal:#FF8200;
   --line-h:72px;               /* ledger ruling pitch */
@@ -170,6 +170,9 @@ table.led tr:last-child td{ border-bottom:none; }
 .lim .idx{ font-family:'IBM Plex Mono',monospace; font-size:19px; color:var(--signal); font-weight:600; padding-top:7px; flex:none; }
 .lim .tx{ font-size:29px; line-height:1.4; color:var(--ink); }
 .lim .tx em{ font-style:normal; color:var(--soft); display:block; font-size:22px; margin-top:9px; }
+/* raw readings read as data, not as a claim, so the sentence under them leads */
+.lim .tx .dat{ font-family:'IBM Plex Mono',monospace; font-size:21px; color:var(--muted);
+  letter-spacing:.02em; display:block; }
 
 /* --- statement slides (cover, closing) --- */
 .stmt{ display:flex; flex-direction:column; justify-content:center; height:100%; }
@@ -278,8 +281,8 @@ table.kv tr.tot td.n{ color:var(--signal); }
       <span>{{window_start}} &rarr; {{window_end}}</span><span>August 2026</span>
     </div>
     <h1 class="reveal">A pipeline that notices<br>when it's <mark>wrong</mark></h1>
-    <p class="lede reveal">{{incident_count}} failures in {{window_days}}. {{incident_caught_at_source}} caught on arrival,
-      one found by hand &mdash; and not a dollar lost to any of them.</p>
+    <p class="lede reveal">Does weather change what people buy at Rocky Top Outfitters &mdash; and can
+      the pipeline that answers it be trusted?</p>
     <div class="run reveal">
       <div class="cap">the month, as the pipeline recorded it</div>
       <div class="marks">
@@ -415,7 +418,7 @@ table.kv tr.tot td.n{ color:var(--signal); }
     <h2 class="reveal">We attacked our own fix with a poisoned file.<br>It caught <mark>all five</mark>.</h2>
     <p class="lede small reveal">A fix you haven't tested is a claim, not a fix.</p>
     <div class="ev center reveal">
-      <img src="assets/poison_fixture_log.png" style="max-height:400px; width:auto;"
+      <img src="assets/poison_fixture_log.png" style="max-height:470px; width:auto;"
            alt="Executed quality-gate log showing the non-numeric price flag firing on five planted values">
     </div>
     <div class="note reveal">Executed {{poison_meta}} &mdash; a synthetic price-as-text file pushed through
@@ -516,7 +519,7 @@ table.kv tr.tot td.n{ color:var(--signal); }
     <p class="lede reveal">{{d_revised}} changed after we locked our numbers. Two crossed our rain line.</p>
     <div class="ev reveal">
       <div class="lims stag">
-        <div class="lim"><div class="idx">&darr;</div><div class="tx">{{d_flips}}
+        <div class="lim"><div class="idx">&darr;</div><div class="tx"><span class="dat">{{d_flips}}</span>
           <em>Both fall on the newest date in our window &mdash; exactly how a preliminary value behaves before it settles.</em></div></div>
         <div class="lim"><div class="idx">&times;</div><div class="tx">Our cache deleted the previous pull every single run
           <em>The cache was named by date range, and the range grew daily &mdash; so each run destroyed the only record of what the archive had said before. Found in audit; pulls accumulate now.</em></div></div>
