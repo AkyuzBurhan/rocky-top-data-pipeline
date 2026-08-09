@@ -206,16 +206,18 @@ What we cannot do from inside the pipeline is tell an empty file apart from a ge
   `"$72.70"` is neither NA nor negative, and no non-numeric check exists.
 - **`src/transform.py` does not handle it**: `_to_float()` uses
   `pd.to_numeric(errors="coerce")`, which turns every `$` value into NaN.
-  Verified in `rocky_top.db`: all 155 `clean_orders` rows for 2026-08-05 have
+  Before the fix, all 155 `clean_orders` rows for 2026-08-05 had
   `unit_price = NULL` and `line_revenue = NULL`, and every `daily_sales` row
-  for 2026-08-05 reports `net_revenue = 0.0` while `units_sold` is positive.
-  The day's revenue is silently lost. Recorded in Limitations below.
-- **Recovered from raw:** $56,970.09 net (155 rows), computed from
-  `data/raw/orders_2026-08-05.csv` by stripping the `$` and summing
-  `unit_price * quantity`. Gross equivalent $61,474.35. The day was
-  recoverable in about fifteen minutes because the bronze layer preserved
-  the original bytes. See "Revenue, 2026-07-07 through 2026-08-07" at the end
-  of this document for the corrected totals.
+  for that date reported `net_revenue = 0.0` while `units_sold` stayed
+  positive. The day's revenue was silently lost. Fixed in commit `3676313`;
+  see Limitation 1.
+- **Recovered:** $56,970.09 net (155 rows). We first computed this by hand
+  from `data/raw/orders_2026-08-05.csv`, stripping the `$` and summing
+  `unit_price * quantity`. The pipeline now produces the same figure on its
+  own. Gross equivalent $61,474.35. The day was recoverable in about fifteen
+  minutes because the bronze layer preserved the original bytes. See
+  "Revenue, 2026-07-07 through 2026-08-07" at the end of this document for
+  the corrected totals.
 
 ### Why we decided this
 
@@ -281,16 +283,21 @@ Facts about what exists:
 
 - Business question (README.md): which stores and product categories are most
   weather-sensitive, and what inventory/promotion recommendations follow.
-- The analytics-ready table `daily_sales` exists in `rocky_top.db`: 1,367 rows
-  at grain `order_date × store_id × category × category_source`, with
-  `units_sold`, `net_revenue`, `gross_revenue`, `discount_given`, and four
-  weather columns joined from `weather_daily` (all 1,367 rows have weather).
-  The build prints grain-uniqueness and revenue-reconciliation checks
-  (`src/transform.py build_daily_sales`).
+- The analytics-ready table `daily_sales` exists in `rocky_top.db` at grain
+  `order_date × store_id × category × category_source`, with `units_sold`,
+  `net_revenue`, `gross_revenue`, `discount_given`, and four weather columns
+  joined from `weather_daily`. Every row has weather. The frozen
+  2026-07-07..2026-08-07 analysis window covers 1,367 of those rows; the live
+  table grows daily as the cron runs. The build prints grain-uniqueness and
+  revenue-reconciliation checks (`src/transform.py build_daily_sales`).
 - Weather data: Open-Meteo archive API, cached per store as JSON under
-  `data/weather_cache/` (8 files, one per store, covering
-  2026-07-07..2026-08-07), loaded to `weather_daily` (256 rows = 8 stores ×
-  32 dates) by `src/weather.py`.
+  `data/weather_cache/` (8 files, one per store), loaded to `weather_daily`
+  by `src/weather.py`. The table holds one row per store per calendar date
+  in the range, not per order date: 8 stores × 33 calendar dates = 264 rows.
+  The three calendar dates with no orders are 2026-07-24 (stale republish),
+  2026-08-03 (empty file), and 2026-08-06 (404), which is why 30 order dates
+  sit inside a 33-day range. The console message prints the order-date count,
+  so `8 stores x 30 dates` and 264 rows are consistent.
 - **The business-facing artifact is `dashboard/app.py`,** a 598-line Streamlit
   board added in commit `2f4aef6`. It shows KPI tiles with sparklines, revenue
   by store and by category, weather-sensitivity correlations at the store-day
@@ -298,7 +305,6 @@ Facts about what exists:
   threshold is drawn, and an inventory and promotion playbook tied to the
   channel-shift finding. Run it with
   `uv run streamlit run dashboard/app.py`.
-  See audit_gaps.md.
 
 ### Why we decided this
 
@@ -367,7 +373,7 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    (there is no row for a date unless capture/backfill ran).
 6. **Weather archive lag.** `src/weather.py` documents that the Open-Meteo
    ERA5 archive lags by a few days, so the most recent dates may join as NULL
-   (currently all 1,367 `daily_sales` rows do have weather).
+   (currently every `daily_sales` row has weather).
 7. **Header-mislabel path is untested by data.** The
    `header_mislabeled_product` flag (`helpers/dq.py`) and the
    `product_id_source` logic exist in code, but no committed raw file
