@@ -340,11 +340,35 @@ One reconciliation note. The dashboard reports $1,373.7K because it filters to t
    currency strings and the parser recovering all 5. The day now reports
    $56,970.09 net.
 
-   **What is still true.** `src/check_quality.py` skips any file already recorded
-   in the quality log, so the non-numeric gate has never run against our 32
-   historical files. It has only ever fired on the synthetic fixture. If an
-   earlier file carried the same formatting and we missed it, this gate would not
-   tell us.
+   **The gap that remained, and how we closed it.** `src/check_quality.py` skips
+   any file already recorded in the quality log. That is correct for a daily
+   pipeline and wrong for a check added after the fact: the non-numeric gate had
+   only ever fired on the synthetic fixture, never on real data. If an earlier
+   file had carried the same formatting, this gate would not have told us.
+
+   So we asked it. `src/verify_dq_history.py` re-runs the current gate over every
+   file in `data/raw/` in memory and diffs each result against the row already in
+   the log. Actual output:
+
+   ```
+   re-checked 32 file(s) in raw/ against the current gate
+   KNOWN      orders_2026-08-05.csv
+              gate now adds: nonnumeric(unit_price=155)
+              documented in DECISIONS.md Limitation 1
+   PASS: 1 known difference(s), no undocumented ones. The quality log was not modified.
+   ```
+
+   2026-08-05 is the only affected day, and the gate catches all 155 rows of it.
+   No other historical file carries unparseable numerics.
+
+   **What is still true.** The script writes nothing, on purpose. The 2026-08-05
+   row in `data/data_quality_log.csv` records `na_unit_price=0` with no
+   non-numeric flag, and that row is the evidence that no check fired at the time.
+   Regenerating the log would replace the record of the miss with a clean row and
+   erase the incident. So the gate is verified against history but the history
+   itself is left as it happened, and `check_quality.py` still will not re-check a
+   logged file on its own. A future check added after ingestion has the same blind
+   spot until someone runs the verifier again.
 2. **Crosswalk integrity check is not persisted.** `_validate()`
    (`src/crosswalk.py`) confirms 1:1 assignment (76/76 unique new IDs) but
    only prints to stdout; nothing writes it to a table, log, or file, so
