@@ -101,6 +101,11 @@ S2_NOTES = [
     "repo's Actions history. If pressed whether the old schedule still "
     "runs: yes, still firing and failing daily since the migration; "
     "both repos' workflows are on the post-course shutdown list.",
+    "If pressed on raw-first: it is scoped to the orders feed. Weather was "
+    "refetched each run rather than preserved, because the cache key was "
+    "the date range and the old file was unlinked before the new one was "
+    "written. We found it in audit, removed the unlink, and wrote it up as "
+    "Limitation 8; pulls accumulate from that commit forward.",
 ]
 
 # --- slide 3 --------------------------------------------------------------
@@ -328,6 +333,11 @@ S7B_NOTES = [
     "Q7 (anyone) · Why present a result that failed? The sensitivity test "
     "is the result: a threshold-dependent number isn't a finding. Same "
     "rule the crosswalk enforces with explicit thresholds.",
+    "If the board is on screen next to this slide: it uses precip >= 1mm "
+    "and means over the live table, these slides use strict > 1mm and "
+    "medians over the window frozen at 07-07 to 08-07. The pickup shift on "
+    "7a holds either way (+3.7 vs +3.8pp); this table does not, which is "
+    "the point of the slide. Reconciliation table in DECISIONS.md section 5.",
     "Row order is deliberate: the original 1mm claim first, then the "
     "spread that kills it; A2 sorts ascending for reference.",
 ]
