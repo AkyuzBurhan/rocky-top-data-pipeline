@@ -558,11 +558,11 @@ quiz or assessment**, per course policy.
 
 | Tool | Used for |
 |---|---|
-| Claude (chat) | Repository audit, verification of revenue and crosswalk figures, project planning, drafting |
-| Claude Code | Repo sweep against the rubric, factual sections of this document, `src/verify_tables.py`, `docs/CONTEXT.md`, `audit_gaps.md` |
+| Claude (chat) (Connor) | Repository audit, verification of revenue and crosswalk figures, project planning, drafting |
+| Claude Code (Connor) | Repo sweep against the rubric, factual sections of this document, `src/verify_tables.py`, `docs/CONTEXT.md`, `audit_gaps.md` |
 | Claude (Burhan) | `dashboard/app.py`, the Streamlit weather-sensitivity dashboard |
-| [Jack: fill in] | [Jack: fill in] |
-| Copilot and Claude |  Checking weather data integration and Open-Meteo API caching logic |
+| Copilot and Claude (James)|  Checking weather data integration and Open-Meteo API caching logic |
+| Claude code (Jack Dyess) | Assisted with developing the data ingestion pipeline for this project (writing and debugging scripts to load, clean, and structure raw data for analysis). |
 
 ### What was AI-generated
 
