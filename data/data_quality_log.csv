@@ -46,3 +46,4 @@ run_date,file_name,n_rows,product_col,has_source_flag,na_order_id,na_order_date,
 2026-08-21,orders_2026-08-21.csv,102,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,schema_new_product_col
 2026-08-22,orders_2026-08-22.csv,134,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,schema_new_product_col
 2026-08-23,orders_2026-08-23.csv,158,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,schema_new_product_col
+2026-08-24,orders_2026-08-24.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,schema_new_product_col
