@@ -52,3 +52,4 @@ run_date,file_name,n_rows,product_col,has_source_flag,na_order_id,na_order_date,
 2026-08-27,orders_2026-08-27.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-08-27,found=2026-08-24)"
 2026-08-28,orders_2026-08-28.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-08-28,found=2026-08-24)"
 2026-08-29,orders_2026-08-29.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-08-29,found=2026-08-24)"
+2026-08-30,orders_2026-08-30.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-08-30,found=2026-08-24)"
