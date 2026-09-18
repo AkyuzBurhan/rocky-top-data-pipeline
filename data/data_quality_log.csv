@@ -71,3 +71,4 @@ run_date,file_name,n_rows,product_col,has_source_flag,na_order_id,na_order_date,
 2026-09-15,orders_2026-09-15.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-09-15,found=2026-08-24)"
 2026-09-16,orders_2026-09-16.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-09-16,found=2026-08-24)"
 2026-09-17,orders_2026-09-17.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-09-17,found=2026-08-24)"
+2026-09-18,orders_2026-09-18.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-09-18,found=2026-08-24)"
