@@ -99,3 +99,4 @@ run_date,file_name,n_rows,product_col,has_source_flag,na_order_id,na_order_date,
 2026-10-14,orders_2026-10-14.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-10-14,found=2026-08-24)"
 2026-10-15,orders_2026-10-15.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-10-15,found=2026-08-24)"
 2026-10-16,orders_2026-10-16.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-10-16,found=2026-08-24)"
+2026-10-17,orders_2026-10-17.csv,137,new_product_id,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"schema_new_product_col;stale(expected=2026-10-17,found=2026-08-24)"
